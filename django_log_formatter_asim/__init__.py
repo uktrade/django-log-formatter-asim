@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 from django.conf import settings
 # TODO...
 from kubi_ecs_logger import Logger
-from kubi_ecs_logger.models import BaseSchema
 from kubi_ecs_logger.models import Severity
 
 # TODO: Event categories - https://www.elastic.co/guide/en/ecs/current/ecs-allowed-values-event-category.html  # noqa E501
@@ -16,59 +15,113 @@ CATEGORY_PROCESS = "process"
 CATEGORY_WEB = "web"
 
 
-class ASIMLogger(Logger):
-    def __init__(self, *args, **kwargs):
-        super(ASIMLogger, self).__init__(*args, **kwargs)
-
-    def get_log_dict(self):
-        return BaseSchema().dump(self._base)
+# class ASIMLogger(Logger):
+#     def __init__(self, *args, **kwargs):
+#         super(ASIMLogger, self).__init__(*args, **kwargs)
+#
+#     def get_log_dict(self):
+#         log_dict = {
+#             "EventMessage": self._base.event.message
+#         }
+#         return log_dict
 
 
 class ASIMFormatterBase:
     def __init__(self, record):
         self.record = record
 
-    def _get_event_base(self, extra_labels={}):
-        labels = {
-            "application": getattr(settings, "DLFE_APP_NAME", None),
-            "env": self._get_environment(),
+    def _get_log_dict_base(self):
+        return {
+            "EventMessage": self.record.msg
+            # EventCount	Mandatory	Integer	The number of events described by the record.
+            # EventStartTime	Mandatory	Date/time	The time in which the event started. If the source supports aggregation and the record represents multiple events, the time that the first event was generated. If not provided by the source record, this field aliases the TimeGenerated field.
+            # EventEndTime	Mandatory	Date/time	The time in which the event ended. If the source supports aggregation and the record represents multiple events, the time that the last event was generated. If not provided by the source record, this field aliases the TimeGenerated field.
+            # EventType	Mandatory	Enumerated	Describes the operation reported by the record. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalType field.
+            # EventSubType	Optional	Enumerated	Describes a subdivision of the operation reported in the EventType field. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalSubType field.
+            # EventResult	Mandatory	Enumerated	One of the following values: Success, Partial, Failure, NA (Not Applicable).
+            # EventResultDetails	Recommended	Enumerated	Reason or details for the result reported in the EventResult field. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalResultDetails field.
+            # EventUid	Recommended	String	The unique ID of the record, as assigned by Microsoft Sentinel. This field is typically mapped to the _ItemId Log Analytics field.
+            # EventOriginalUid	Optional	String	A unique ID of the original record, if provided by the source.
+            # EventOriginalType	Optional	String	The original event type or ID, if provided by the source. For example, this field is used to store the original Windows event ID. This value is used to derive EventType, which should have only one of the values documented for each schema.
+            # EventOriginalSubType	Optional	String	The original event subtype or ID, if provided by the source. For example, this field is used to store the original Windows logon type. This value is used to derive EventSubType, which should have only one of the values documented for each schema.
+            # EventOriginalResultDetails	Optional	String	The original result details provided by the source. This value is used to derive EventResultDetails, which should have only one of the values documented for each schema.
+            # EventSeverity	Recommended	Enumerated	The severity of the event. Valid values are: Informational, Low, Medium, or High.
+            # EventOriginalSeverity	Optional	String	The original severity as provided by the reporting device. This value is used to derive EventSeverity.
+            # EventProduct	Mandatory	String	The product generating the event. The value should be one of the values listed in Vendors and Products.
+            # EventProductVersion	Optional	String	The version of the product generating the event.
+            # EventVendor	Mandatory	String	The vendor of the product generating the event. The value should be one of the values listed in Vendors and Products.
+            # EventSchema	Mandatory	String	The schema the event is normalized to. Each schema documents its schema name.
+            # EventSchemaVersion	Mandatory	String	The version of the schema. Each schema documents its current version.
+            # EventReportUrl	Optional	String	A URL provided in the event for a resource that provides more information about the event.
+            # EventOwner	Optional	String	The owner of the event, which is usually the department or subsidiary in which it was generated.
+
+            # Device fields...
+            # Dvc	Alias	String	A unique identifier of the device on which the event occurred or which reported the event, depending on the schema.
+            # DvcIpAddr	Recommended	IP address	The IP address of the device on which the event occurred or which reported the event, depending on the schema.
+            # DvcHostname	Recommended	Hostname	The hostname of the device on which the event occurred or which reported the event, depending on the schema.
+            # DvcDomain	Recommended	String	The domain of the device on which the event occurred or which reported the event, depending on the schema.
+            # DvcDomainType	Conditional	Enumerated	The type of DvcDomain. For a list of allowed values and further information, refer to DomainType.
+            # DvcFQDN	Optional	String	The hostname of the device on which the event occurred or which reported the event, depending on the schema.
+            # DvcDescription	Optional	String	A descriptive text associated with the device. For example: Primary Domain Controller.
+            # DvcId	Optional	String	The unique ID of the device on which the event occurred or which reported the event, depending on the schema.
+            # DvcIdType	Conditional	Enumerated	The type of DvcId. For a list of allowed values and further information, refer to DvcIdType.
+            # DvcMacAddr	Optional	MAC	The MAC address of the device on which the event occurred or which reported the event.
+            # DvcZone	Optional	String	The network on which the event occurred or which reported the event, depending on the schema. The zone is defined by the reporting device.
+            # DvcOs	Optional	String	The operating system running on the device on which the event occurred or which reported the event.
+            # DvcOsVersion	Optional	String	The version of the operating system on the device on which the event occurred or which reported the event.
+            # DvcAction	Recommended	String	For reporting security systems, the action taken by the system, if applicable.
+            # DvcOriginalAction	Optional	String	The original DvcAction as provided by the reporting device.
+            # DvcInterface	Optional	String	The network interface on which data was captured. This field is typically relevant to network related activity, which is captured by an intermediate or tap device.
+            # DvcScopeId	Optional	String	The cloud platform scope ID the device belongs to. DvcScopeId map to a subscription ID on Azure and to an account ID on AWS.
+            # DvcScope	Optional	String	The cloud platform scope the device belongs to. DvcScope map to a subscription ID on Azure and to an account ID on AWS.
+
+            # Other fields...
+            # AdditionalFields	Optional	Dynamic	If your source provides additional information worth preserving, either keep it with the original field names or create the dynamic AdditionalFields field, and add to it the extra information as key/value pairs.
+            # ASimMatchingIpAddr	Recommended	String	When a parser uses the ipaddr_has_any_prefix filtering parameters, this field is set with the one of the values SrcIpAddr, DstIpAddr, or Both to reflect the matching fields or fields.
+            # ASimMatchingHostname	Recommended	String	When a parser uses the hostname_has_any filtering parameters, this field is set with the one of the values SrcHostname, DstHostname, or Both to reflect the matching fields or fields.
         }
 
-        logger = (
-            ASIMLogger()
-            .event(
-                category=self._get_event_category(),
-                action=self.record.name,
-                message=self.record.getMessage(),
-                labels={
-                    **labels,
-                    **extra_labels,
-                },
-            )
-            .host(
-                architecture=platform.machine(),
-            )
-        )
+    # def _get_event_base(self, extra_labels={}):
+    #     labels = {
+    #         "application": getattr(settings, "DLFE_APP_NAME", None),
+    #         "env": self._get_environment(),
+    #     }
+    #
+    #     logger = (
+    #         ASIMLogger()
+    #         .event(
+    #             category=self._get_event_category(),
+    #             action=self.record.name,
+    #             message=self.record.getMessage(),
+    #             labels={
+    #                 **labels,
+    #                 **extra_labels,
+    #             },
+    #         )
+    #         .host(
+    #             architecture=platform.machine(),
+    #         )
+    #     )
+    #
+    #     return logger
 
-        return logger
+    # def _get_event_category(self):
+    #     if self.record.name in ("django.request", "django.server"):
+    #         return CATEGORY_WEB
+    #     if self.record.name.startswith("django.db.backends"):
+    #         return CATEGORY_DATABASE
+    #
+    #     return CATEGORY_PROCESS
 
-    def _get_event_category(self):
-        if self.record.name in ("django.request", "django.server"):
-            return CATEGORY_WEB
-        if self.record.name.startswith("django.db.backends"):
-            return CATEGORY_DATABASE
-
-        return CATEGORY_PROCESS
-
-    def _get_environment(self):
-        return os.getenv("DJANGO_SETTINGS_MODULE") or "Unknown"
+    # def _get_environment(self):
+    #     return os.getenv("DJANGO_SETTINGS_MODULE") or "Unknown"
 
 
 class ASIMSystemFormatter(ASIMFormatterBase):
-    def get_event(self):
-        logger_event = self._get_event_base()
+    def get_log_dict(self):
+        log_dict = self._get_log_dict_base()
 
-        return logger_event
+        return log_dict
 
 
 class ASIMDBFormatter(ASIMFormatterBase):
@@ -195,13 +248,17 @@ class ASIMFormatter(logging.Formatter):
             asim_formatter = ASIMSystemFormatter
 
         formatter = asim_formatter(record=record)
-        logger_event = formatter.get_event()
+        # logger_event = formatter.get_event()
+        #
+        # logger_event.log(
+        #     level=self._get_severity(record.levelname),
+        # )
+        #
+        # log_dict = {
+        #     "EventMessage": record.msg
+        # }
 
-        logger_event.log(
-            level=self._get_severity(record.levelname),
-        )
-
-        log_dict = logger_event.get_log_dict()
+        log_dict = formatter.get_log_dict()
 
         return json.dumps(log_dict)
 
