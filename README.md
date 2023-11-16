@@ -4,7 +4,7 @@ The library formats Django logs in [ASIM format](https://learn.microsoft.com/en-
 
 Mapping to the format may not be complete, but best effort has been made to create logical field mappings.
 
-If you need to amend the mapping you can implement a custom formatter (see below).
+If you need to amend the mapping, you can implement a custom formatter.
 
 ## Installation
 
@@ -43,9 +43,9 @@ LOGGING = {
 
 ## Dependencies
 
-This package uses Django IPware https://github.com/un33k/django-ipware for IP address capture.
+This package uses [Django IPware](https://github.com/un33k/django-ipware) for IP address capture.
 
-This package is compatible with django-user_agents https://pypi.org/project/django-user-agents/ which, when used, will enhance logged user agent information.
+This package is compatible with [Django User Agents](https://pypi.org/project/django-user-agents) which, when used, will enhance logged user agent information.
 
 ## Settings
 
