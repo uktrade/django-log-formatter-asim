@@ -1,0 +1,6 @@
+.idea/
+.tox/
+django_log_formatter_asim.egg-info/
+__pycache__/
+build/
+dist/
