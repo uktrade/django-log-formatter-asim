@@ -15,7 +15,6 @@ packages = [
 [tool.poetry.dependencies]
 django = "^4.2.7"
 django-ipware = "^5.0.2"
-kubi-ecs-logger = "^0.1.2"
 python = ">=3.9,<4"
 
 [tool.poetry.group.dev.dependencies]

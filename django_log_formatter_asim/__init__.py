@@ -5,9 +5,6 @@ import platform
 from urllib.parse import urlparse
 
 from django.conf import settings
-# TODO...
-from kubi_ecs_logger import Logger
-from kubi_ecs_logger.models import Severity
 
 # TODO: Event categories - https://www.elastic.co/guide/en/ecs/current/ecs-allowed-values-event-category.html  # noqa E501
 CATEGORY_DATABASE = "database"
@@ -262,14 +259,14 @@ class ASIMFormatter(logging.Formatter):
 
         return json.dumps(log_dict)
 
-    def _get_severity(self, level):
-        if level == "DEBUG":
-            return Severity.DEBUG
-        elif level == "INFO":
-            return Severity.INFO
-        elif level == "WARNING":
-            return Severity.WARNING
-        elif level == "ERROR":
-            return Severity.ERROR
-        elif level == "CRITICAL":
-            return Severity.CRITICAL
+    # def _get_severity(self, level):
+    #     if level == "DEBUG":
+    #         return Severity.DEBUG
+    #     elif level == "INFO":
+    #         return Severity.INFO
+    #     elif level == "WARNING":
+    #         return Severity.WARNING
+    #     elif level == "ERROR":
+    #         return Severity.ERROR
+    #     elif level == "CRITICAL":
+    #         return Severity.CRITICAL
