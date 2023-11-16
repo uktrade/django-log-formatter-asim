@@ -70,15 +70,20 @@ class ASIMFormatterTest(TestCase):
 
         return json.loads(json_output)
 
-
-
-    def test_record_common_fields(self):
+    def test_system_formatter_logs_common_fields(self):
         logger, log_buffer = self._create_logger("django")
         logger.debug("Test")
         json_output = log_buffer.getvalue()
         output = json.loads(json_output)
 
         assert output["EventMessage"] == "Test"
+        assert output["EventCount"] == 1
+        # EventStartTime
+        # EventEndTime
+        # EventType
+        # EventResult
+        # EventSeverity
+        # EventProduct
 
     # def test_request_formatting(self):
     #     output = self._create_request_log()

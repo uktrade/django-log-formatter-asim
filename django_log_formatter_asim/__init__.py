@@ -6,10 +6,10 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 
-# TODO: Event categories - https://www.elastic.co/guide/en/ecs/current/ecs-allowed-values-event-category.html  # noqa E501
-CATEGORY_DATABASE = "database"
-CATEGORY_PROCESS = "process"
-CATEGORY_WEB = "web"
+# # TODO: Event categories - https://www.elastic.co/guide/en/ecs/current/ecs-allowed-values-event-category.html  # noqa E501
+# CATEGORY_DATABASE = "database"
+# CATEGORY_PROCESS = "process"
+# CATEGORY_WEB = "web"
 
 
 # class ASIMLogger(Logger):
@@ -29,8 +29,8 @@ class ASIMFormatterBase:
 
     def _get_log_dict_base(self):
         return {
-            "EventMessage": self.record.msg
-            # EventCount	Mandatory	Integer	The number of events described by the record.
+            "EventMessage": self.record.msg,
+            "EventCount": 1
             # EventStartTime	Mandatory	Date/time	The time in which the event started. If the source supports aggregation and the record represents multiple events, the time that the first event was generated. If not provided by the source record, this field aliases the TimeGenerated field.
             # EventEndTime	Mandatory	Date/time	The time in which the event ended. If the source supports aggregation and the record represents multiple events, the time that the last event was generated. If not provided by the source record, this field aliases the TimeGenerated field.
             # EventType	Mandatory	Enumerated	Describes the operation reported by the record. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalType field.
@@ -51,7 +51,6 @@ class ASIMFormatterBase:
             # EventSchemaVersion	Mandatory	String	The version of the schema. Each schema documents its current version.
             # EventReportUrl	Optional	String	A URL provided in the event for a resource that provides more information about the event.
             # EventOwner	Optional	String	The owner of the event, which is usually the department or subsidiary in which it was generated.
-
             # Device fields...
             # Dvc	Alias	String	A unique identifier of the device on which the event occurred or which reported the event, depending on the schema.
             # DvcIpAddr	Recommended	IP address	The IP address of the device on which the event occurred or which reported the event, depending on the schema.
@@ -71,7 +70,6 @@ class ASIMFormatterBase:
             # DvcInterface	Optional	String	The network interface on which data was captured. This field is typically relevant to network related activity, which is captured by an intermediate or tap device.
             # DvcScopeId	Optional	String	The cloud platform scope ID the device belongs to. DvcScopeId map to a subscription ID on Azure and to an account ID on AWS.
             # DvcScope	Optional	String	The cloud platform scope the device belongs to. DvcScope map to a subscription ID on Azure and to an account ID on AWS.
-
             # Other fields...
             # AdditionalFields	Optional	Dynamic	If your source provides additional information worth preserving, either keep it with the original field names or create the dynamic AdditionalFields field, and add to it the extra information as key/value pairs.
             # ASimMatchingIpAddr	Recommended	String	When a parser uses the ipaddr_has_any_prefix filtering parameters, this field is set with the one of the values SrcIpAddr, DstIpAddr, or Both to reflect the matching fields or fields.
@@ -116,123 +114,119 @@ class ASIMFormatterBase:
 
 class ASIMSystemFormatter(ASIMFormatterBase):
     def get_log_dict(self):
-        log_dict = self._get_log_dict_base()
-
-        return log_dict
+        return self._get_log_dict_base()
 
 
 class ASIMDBFormatter(ASIMFormatterBase):
     # created for augmentation based on django.db.backends
-    def get_event(self):
-        logger_event = self._get_event_base()
-
-        return logger_event
+    def get_log_dict(self):
+        return self._get_log_dict_base()
 
 
-class ASIMRequestFormatter(ASIMFormatterBase):
-    def get_event(self):
-        zipkin_headers = getattr(
-            settings,
-            "DLFE_ZIPKIN_HEADERS",
-            ("X-B3-TraceId", "X-B3-SpanId"),
-        )
-
-        extra_labels = {}
-
-        for zipkin_header in zipkin_headers:
-            if getattr(
-                self.record.request.headers,
-                zipkin_header,
-                None,
-            ):
-                extra_labels[zipkin_header] = self.record.request.headers[
-                    zipkin_header
-                ]  # noqa E501
-
-        logger_event = self._get_event_base(
-            extra_labels=extra_labels,
-        )
-
-        parsed_url = urlparse(self.record.request.build_absolute_uri())
-
-        ip = self._get_ip_address(self.record.request)
-
-        request_bytes = len(self.record.request.body)
-
-        logger_event.url(
-            path=parsed_url.path,
-            domain=parsed_url.hostname,
-        ).source(
-            ip=self._get_ip_address(self.record.request)
-        ).http_response(status_code=getattr(self.record, "status_code", None)).client(
-            address=ip,
-            bytes=request_bytes,
-            domain=parsed_url.hostname,
-            ip=ip,
-            port=parsed_url.port,
-        ).http_request(
-            body_bytes=request_bytes,
-            body_content=self.record.request.body,
-            method=self.record.request.method,
-        )
-
-        user_agent_string = getattr(
-            self.record.request.headers,
-            "user_agent",
-            None,
-        )
-
-        if not user_agent_string and "HTTP_USER_AGENT" in self.record.request.META:  # noqa E501
-            user_agent_string = self.record.request.META["HTTP_USER_AGENT"]
-
-        # Check for use of django-user_agents
-        if getattr(self.record.request, "user_agent", None):
-            logger_event.user_agent(
-                device={
-                    "name": self.record.request.user_agent.device.family,
-                },
-                name=self.record.request.user_agent.browser.family,
-                original=user_agent_string,
-                version=self.record.request.user_agent.browser.version_string,
-            )
-        elif user_agent_string:
-            logger_event.user_agent(
-                original=user_agent_string,
-            )
-
-        if getattr(self.record.request, "user", None):
-            if getattr(settings, "DLFE_LOG_SENSITIVE_USER_DATA", False):
-                # Defensively check for full name due to possibility of custom user app
-                try:
-                    full_name = self.record.request.user.get_full_name()
-                except AttributeError:
-                    full_name = None
-
-                # Check user attrs to account for custom user apps
-                logger_event.user(
-                    email=getattr(self.record.request.user, "email", None),
-                    full_name=full_name,
-                    name=getattr(self.record.request.user, "username", None),
-                    id=getattr(self.record.request.user, "id", None),
-                )
-            else:
-                logger_event.user(
-                    id=getattr(self.record.request.user, "id", None),
-                )
-
-        return logger_event
-
-    def _get_ip_address(self, request):
-        # Import here as ipware uses settings
-        from ipware import get_client_ip
-
-        client_ip, is_routable = get_client_ip(request)
-        return client_ip or "Unknown"
+# class ASIMRequestFormatter(ASIMFormatterBase):
+#     def get_event(self):
+#         zipkin_headers = getattr(
+#             settings,
+#             "DLFE_ZIPKIN_HEADERS",
+#             ("X-B3-TraceId", "X-B3-SpanId"),
+#         )
+#
+#         extra_labels = {}
+#
+#         for zipkin_header in zipkin_headers:
+#             if getattr(
+#                 self.record.request.headers,
+#                 zipkin_header,
+#                 None,
+#             ):
+#                 extra_labels[zipkin_header] = self.record.request.headers[
+#                     zipkin_header
+#                 ]  # noqa E501
+#
+#         logger_event = self._get_event_base(
+#             extra_labels=extra_labels,
+#         )
+#
+#         parsed_url = urlparse(self.record.request.build_absolute_uri())
+#
+#         ip = self._get_ip_address(self.record.request)
+#
+#         request_bytes = len(self.record.request.body)
+#
+#         logger_event.url(
+#             path=parsed_url.path,
+#             domain=parsed_url.hostname,
+#         ).source(
+#             ip=self._get_ip_address(self.record.request)
+#         ).http_response(status_code=getattr(self.record, "status_code", None)).client(
+#             address=ip,
+#             bytes=request_bytes,
+#             domain=parsed_url.hostname,
+#             ip=ip,
+#             port=parsed_url.port,
+#         ).http_request(
+#             body_bytes=request_bytes,
+#             body_content=self.record.request.body,
+#             method=self.record.request.method,
+#         )
+#
+#         user_agent_string = getattr(
+#             self.record.request.headers,
+#             "user_agent",
+#             None,
+#         )
+#
+#         if not user_agent_string and "HTTP_USER_AGENT" in self.record.request.META:  # noqa E501
+#             user_agent_string = self.record.request.META["HTTP_USER_AGENT"]
+#
+#         # Check for use of django-user_agents
+#         if getattr(self.record.request, "user_agent", None):
+#             logger_event.user_agent(
+#                 device={
+#                     "name": self.record.request.user_agent.device.family,
+#                 },
+#                 name=self.record.request.user_agent.browser.family,
+#                 original=user_agent_string,
+#                 version=self.record.request.user_agent.browser.version_string,
+#             )
+#         elif user_agent_string:
+#             logger_event.user_agent(
+#                 original=user_agent_string,
+#             )
+#
+#         if getattr(self.record.request, "user", None):
+#             if getattr(settings, "DLFE_LOG_SENSITIVE_USER_DATA", False):
+#                 # Defensively check for full name due to possibility of custom user app
+#                 try:
+#                     full_name = self.record.request.user.get_full_name()
+#                 except AttributeError:
+#                     full_name = None
+#
+#                 # Check user attrs to account for custom user apps
+#                 logger_event.user(
+#                     email=getattr(self.record.request.user, "email", None),
+#                     full_name=full_name,
+#                     name=getattr(self.record.request.user, "username", None),
+#                     id=getattr(self.record.request.user, "id", None),
+#                 )
+#             else:
+#                 logger_event.user(
+#                     id=getattr(self.record.request.user, "id", None),
+#                 )
+#
+#         return logger_event
+#
+#     def _get_ip_address(self, request):
+#         # Import here as ipware uses settings
+#         from ipware import get_client_ip
+#
+#         client_ip, is_routable = get_client_ip(request)
+#         return client_ip or "Unknown"
 
 
 ASIM_FORMATTERS = {
     "root": ASIMSystemFormatter,
-    "django.request": ASIMRequestFormatter,
+    # "django.request": ASIMRequestFormatter,
     "django.db.backends": ASIMSystemFormatter,
 }
 
