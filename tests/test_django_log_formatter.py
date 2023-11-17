@@ -2,8 +2,8 @@ import json
 import logging
 import os
 from io import StringIO
-from unittest import TestCase
-from unittest.mock import patch
+
+import pytest
 from freezegun import freeze_time
 from django.conf import settings
 from django.test import RequestFactory
@@ -29,7 +29,7 @@ class User:
         return f"{self.first_name} {self.last_name}"
 
 
-class ASIMFormatterTest(TestCase):
+class TestASIMFormatter:
     def setUp(self):
         self.factory = RequestFactory()
 
@@ -95,8 +95,8 @@ class ASIMFormatterTest(TestCase):
         assert output["EventOriginalType"] is None
         assert output["EventOriginalSubType"] is None
         assert output["EventOriginalResultDetails"] is None
-        # EventSeverity	Recommended	Enumerated	The severity of the event. Valid values are: Informational, Low, Medium, or High.
-        # EventOriginalSeverity	Optional	String	The original severity as provided by the reporting device. This value is used to derive EventSeverity.
+        assert output["EventSeverity"] == "Informational"
+        assert output["EventOriginalSeverity"] == "DEBUG"
         # EventProduct	Mandatory	String	The product generating the event. The value should be one of the values listed in Vendors and Products.
         # EventProductVersion	Optional	String	The version of the product generating the event.
         # EventVendor	Mandatory	String	The vendor of the product generating the event. The value should be one of the values listed in Vendors and Products.
@@ -138,6 +138,27 @@ class ASIMFormatterTest(TestCase):
         assert output["EventType"] == "ProcessCreated"
         assert output["EventSchemaVersion"] == "0.1.4"
         assert output["EventSchema"] == "ProcessEvent"
+
+    @pytest.mark.parametrize(
+        "log_method_name, expected_severity",
+        [
+            ("debug", "Informational"),
+            ("info", "Informational"),
+            ("warning", "Low"),
+            ("error", "Medium"),
+            ("critical", "High"),
+        ],
+    )
+    def test_system_formatter_logs_correct_severity(self, log_method_name, expected_severity):
+        logger, log_buffer = self._create_logger("django")
+        log_method = getattr(logger, log_method_name)
+
+        log_method("Does not matter")
+
+        json_output = log_buffer.getvalue()
+        output = json.loads(json_output)
+        assert output["EventSeverity"] == expected_severity
+        assert output["EventOriginalSeverity"] == str(log_method_name).upper()
 
     # def test_request_formatting(self):
     #     output = self._create_request_log()

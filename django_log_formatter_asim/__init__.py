@@ -45,8 +45,8 @@ class ASIMFormatterBase:
             "EventOriginalType": None,
             "EventOriginalSubType": None,
             "EventOriginalResultDetails": None,
-            # "EventSeverity": None,
-            # "EventOriginalSeverity": None,
+            "EventSeverity": self._get_event_severity(record.levelname),
+            "EventOriginalSeverity": record.levelname,
             # EventProduct	Mandatory	String	The product generating the event. The value should be one of the values listed in Vendors and Products.
             # EventProductVersion	Optional	String	The version of the product generating the event.
             # EventVendor	Mandatory	String	The vendor of the product generating the event. The value should be one of the values listed in Vendors and Products.
@@ -79,6 +79,16 @@ class ASIMFormatterBase:
             # ASimMatchingHostname	Recommended	String	When a parser uses the hostname_has_any filtering parameters, this field is set with the one of the values SrcHostname, DstHostname, or Both to reflect the matching fields or fields.
         }
         return log_dict
+
+    def _get_event_severity(self, log_level):
+        map = {
+            "DEBUG": "Informational",
+            "INFO": "Informational",
+            "WARNING": "Low",
+            "ERROR": "Medium",
+            "CRITICAL": "High",
+        }
+        return map[log_level]
 
     # def _get_event_base(self, extra_labels={}):
     #     labels = {
