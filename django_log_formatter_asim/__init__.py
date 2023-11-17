@@ -2,26 +2,11 @@ import json
 import logging
 import os
 import platform
+import pickle
 from urllib.parse import urlparse
 from datetime import datetime
 
 from django.conf import settings
-
-# # TODO: Event categories - https://www.elastic.co/guide/en/ecs/current/ecs-allowed-values-event-category.html  # noqa E501
-# CATEGORY_DATABASE = "database"
-# CATEGORY_PROCESS = "process"
-# CATEGORY_WEB = "web"
-
-
-# class ASIMLogger(Logger):
-#     def __init__(self, *args, **kwargs):
-#         super(ASIMLogger, self).__init__(*args, **kwargs)
-#
-#     def get_log_dict(self):
-#         log_dict = {
-#             "EventMessage": self._base.event.message
-#         }
-#         return log_dict
 
 
 class ASIMFormatterBase:
@@ -56,27 +41,8 @@ class ASIMFormatterBase:
             "EventSchemaVersion": "0.1.4",
             "EventReportUrl": None,
             "EventOwner": None,
-            # Device fields...
-            # Dvc	Alias	String	A unique identifier of the device on which the event occurred or which reported the event, depending on the schema.
-            # DvcIpAddr	Recommended	IP address	The IP address of the device on which the event occurred or which reported the event, depending on the schema.
-            # DvcHostname	Recommended	Hostname	The hostname of the device on which the event occurred or which reported the event, depending on the schema.
-            # DvcDomain	Recommended	String	The domain of the device on which the event occurred or which reported the event, depending on the schema.
-            # DvcDomainType	Conditional	Enumerated	The type of DvcDomain. For a list of allowed values and further information, refer to DomainType.
-            # DvcFQDN	Optional	String	The hostname of the device on which the event occurred or which reported the event, depending on the schema.
-            # DvcDescription	Optional	String	A descriptive text associated with the device. For example: Primary Domain Controller.
-            # DvcId	Optional	String	The unique ID of the device on which the event occurred or which reported the event, depending on the schema.
-            # DvcIdType	Conditional	Enumerated	The type of DvcId. For a list of allowed values and further information, refer to DvcIdType.
-            # DvcMacAddr	Optional	MAC	The MAC address of the device on which the event occurred or which reported the event.
-            # DvcZone	Optional	String	The network on which the event occurred or which reported the event, depending on the schema. The zone is defined by the reporting device.
-            # DvcOs	Optional	String	The operating system running on the device on which the event occurred or which reported the event.
-            # DvcOsVersion	Optional	String	The version of the operating system on the device on which the event occurred or which reported the event.
-            # DvcAction	Recommended	String	For reporting security systems, the action taken by the system, if applicable.
-            # DvcOriginalAction	Optional	String	The original DvcAction as provided by the reporting device.
-            # DvcInterface	Optional	String	The network interface on which data was captured. This field is typically relevant to network related activity, which is captured by an intermediate or tap device.
-            # DvcScopeId	Optional	String	The cloud platform scope ID the device belongs to. DvcScopeId map to a subscription ID on Azure and to an account ID on AWS.
-            # DvcScope	Optional	String	The cloud platform scope the device belongs to. DvcScope map to a subscription ID on Azure and to an account ID on AWS.
             # Other fields...
-            "AdditionalFields": json.dumps(record.__dict__),
+            "AdditionalFields": json.dumps(record, default=lambda o: vars(o)),
             "ASimMatchingIpAddr": None,
             "ASimMatchingHostname": None,
         }
@@ -133,117 +99,143 @@ class ASIMSystemFormatter(ASIMFormatterBase):
         return self._get_log_dict_base()
 
 
-class ASIMDBFormatter(ASIMFormatterBase):
-    # created for augmentation based on django.db.backends
+class ASIMRequestFormatter(ASIMFormatterBase):
     def get_log_dict(self):
-        return self._get_log_dict_base()
+        log_dict = self._get_log_dict_base()
 
+        record = self.record
 
-# class ASIMRequestFormatter(ASIMFormatterBase):
-#     def get_event(self):
-#         zipkin_headers = getattr(
-#             settings,
-#             "DLFE_ZIPKIN_HEADERS",
-#             ("X-B3-TraceId", "X-B3-SpanId"),
-#         )
-#
-#         extra_labels = {}
-#
-#         for zipkin_header in zipkin_headers:
-#             if getattr(
-#                 self.record.request.headers,
-#                 zipkin_header,
-#                 None,
-#             ):
-#                 extra_labels[zipkin_header] = self.record.request.headers[
-#                     zipkin_header
-#                 ]  # noqa E501
-#
-#         logger_event = self._get_event_base(
-#             extra_labels=extra_labels,
-#         )
-#
-#         parsed_url = urlparse(self.record.request.build_absolute_uri())
-#
-#         ip = self._get_ip_address(self.record.request)
-#
-#         request_bytes = len(self.record.request.body)
-#
-#         logger_event.url(
-#             path=parsed_url.path,
-#             domain=parsed_url.hostname,
-#         ).source(
-#             ip=self._get_ip_address(self.record.request)
-#         ).http_response(status_code=getattr(self.record, "status_code", None)).client(
-#             address=ip,
-#             bytes=request_bytes,
-#             domain=parsed_url.hostname,
-#             ip=ip,
-#             port=parsed_url.port,
-#         ).http_request(
-#             body_bytes=request_bytes,
-#             body_content=self.record.request.body,
-#             method=self.record.request.method,
-#         )
-#
-#         user_agent_string = getattr(
-#             self.record.request.headers,
-#             "user_agent",
-#             None,
-#         )
-#
-#         if not user_agent_string and "HTTP_USER_AGENT" in self.record.request.META:  # noqa E501
-#             user_agent_string = self.record.request.META["HTTP_USER_AGENT"]
-#
-#         # Check for use of django-user_agents
-#         if getattr(self.record.request, "user_agent", None):
-#             logger_event.user_agent(
-#                 device={
-#                     "name": self.record.request.user_agent.device.family,
-#                 },
-#                 name=self.record.request.user_agent.browser.family,
-#                 original=user_agent_string,
-#                 version=self.record.request.user_agent.browser.version_string,
-#             )
-#         elif user_agent_string:
-#             logger_event.user_agent(
-#                 original=user_agent_string,
-#             )
-#
-#         if getattr(self.record.request, "user", None):
-#             if getattr(settings, "DLFE_LOG_SENSITIVE_USER_DATA", False):
-#                 # Defensively check for full name due to possibility of custom user app
-#                 try:
-#                     full_name = self.record.request.user.get_full_name()
-#                 except AttributeError:
-#                     full_name = None
-#
-#                 # Check user attrs to account for custom user apps
-#                 logger_event.user(
-#                     email=getattr(self.record.request.user, "email", None),
-#                     full_name=full_name,
-#                     name=getattr(self.record.request.user, "username", None),
-#                     id=getattr(self.record.request.user, "id", None),
-#                 )
-#             else:
-#                 logger_event.user(
-#                     id=getattr(self.record.request.user, "id", None),
-#                 )
-#
-#         return logger_event
-#
-#     def _get_ip_address(self, request):
-#         # Import here as ipware uses settings
-#         from ipware import get_client_ip
-#
-#         client_ip, is_routable = get_client_ip(request)
-#         return client_ip or "Unknown"
+        # Source fields...
+        log_dict["Src"] = None
+        log_dict["SrcIpAddr"] = record.request.environ["REMOTE_ADDR"]
+        log_dict["IpAddr"] = log_dict["SrcIpAddr"]
+        log_dict["SrcPortNumber"] = record.request.environ["SERVER_PORT"]
+        log_dict["SrcHostname"] = None
+        log_dict["SrcHostname"] = None
+        log_dict["SrcDomain"] = None
+        log_dict["SrcDomainType"] = None
+        log_dict["SrcFQDN"] = None
+        # Todo: Unsure if correct property for the user agent...
+        log_dict["SrcDescription"] = record.request.headers.USER_AGENT
+        log_dict["SrcDvcId"] = None
+        log_dict["SrcDvcScopeId"] = None
+        log_dict["SrcDvcScope"] = None
+        log_dict["SrcDvcIdType"] = None
+        log_dict["SrcDeviceType"] = None
+        log_dict["SrcSubscriptionId"] = None
+        log_dict["SrcGeoCountry"] = None
+        log_dict["SrcGeoCity"] = None
+        log_dict["SrcGeoLatitude"] = None
+        log_dict["SrcGeoLongitude"] = None
+
+        return log_dict
+
+    def get_event(self):
+        zipkin_headers = getattr(
+            settings,
+            "DLFE_ZIPKIN_HEADERS",
+            ("X-B3-TraceId", "X-B3-SpanId"),
+        )
+
+        extra_labels = {}
+
+        for zipkin_header in zipkin_headers:
+            if getattr(
+                self.record.request.headers,
+                zipkin_header,
+                None,
+            ):
+                extra_labels[zipkin_header] = self.record.request.headers[
+                    zipkin_header
+                ]  # noqa E501
+
+        logger_event = self._get_event_base(
+            extra_labels=extra_labels,
+        )
+
+        parsed_url = urlparse(self.record.request.build_absolute_uri())
+
+        ip = self._get_ip_address(self.record.request)
+
+        request_bytes = len(self.record.request.body)
+
+        logger_event.url(
+            path=parsed_url.path,
+            domain=parsed_url.hostname,
+        ).source(
+            ip=self._get_ip_address(self.record.request)
+        ).http_response(status_code=getattr(self.record, "status_code", None)).client(
+            address=ip,
+            bytes=request_bytes,
+            domain=parsed_url.hostname,
+            ip=ip,
+            port=parsed_url.port,
+        ).http_request(
+            body_bytes=request_bytes,
+            body_content=self.record.request.body,
+            method=self.record.request.method,
+        )
+
+        user_agent_string = self._get_user_agent()
+
+        if not user_agent_string and "HTTP_USER_AGENT" in self.record.request.META:  # noqa E501
+            user_agent_string = self.record.request.META["HTTP_USER_AGENT"]
+
+        # Check for use of django-user_agents
+        if getattr(self.record.request, "user_agent", None):
+            logger_event.user_agent(
+                device={
+                    "name": self.record.request.user_agent.device.family,
+                },
+                name=self.record.request.user_agent.browser.family,
+                original=user_agent_string,
+                version=self.record.request.user_agent.browser.version_string,
+            )
+        elif user_agent_string:
+            logger_event.user_agent(
+                original=user_agent_string,
+            )
+
+        if getattr(self.record.request, "user", None):
+            if getattr(settings, "DLFE_LOG_SENSITIVE_USER_DATA", False):
+                # Defensively check for full name due to possibility of custom user app
+                try:
+                    full_name = self.record.request.user.get_full_name()
+                except AttributeError:
+                    full_name = None
+
+                # Check user attrs to account for custom user apps
+                logger_event.user(
+                    email=getattr(self.record.request.user, "email", None),
+                    full_name=full_name,
+                    name=getattr(self.record.request.user, "username", None),
+                    id=getattr(self.record.request.user, "id", None),
+                )
+            else:
+                logger_event.user(
+                    id=getattr(self.record.request.user, "id", None),
+                )
+
+        return logger_event
+
+    def _get_user_agent(self):
+        return getattr(
+            self.record.request.headers,
+            "user_agent",
+            None,
+        )
+
+    def _get_ip_address(self, request):
+        # Import here as ipware uses settings
+        from ipware import get_client_ip
+
+        client_ip, is_routable = get_client_ip(request)
+        return client_ip or "Unknown"
 
 
 ASIM_FORMATTERS = {
     "root": ASIMSystemFormatter,
-    # "django.request": ASIMRequestFormatter,
-    "django.db.backends": ASIMSystemFormatter,
+    "django.request": ASIMRequestFormatter,
 }
 
 
@@ -255,28 +247,7 @@ class ASIMFormatter(logging.Formatter):
             asim_formatter = ASIMSystemFormatter
 
         formatter = asim_formatter(record=record)
-        # logger_event = formatter.get_event()
-        #
-        # logger_event.log(
-        #     level=self._get_severity(record.levelname),
-        # )
-        #
-        # log_dict = {
-        #     "EventMessage": record.msg
-        # }
 
         log_dict = formatter.get_log_dict()
 
         return json.dumps(log_dict)
-
-    # def _get_severity(self, level):
-    #     if level == "DEBUG":
-    #         return Severity.DEBUG
-    #     elif level == "INFO":
-    #         return Severity.INFO
-    #     elif level == "WARNING":
-    #         return Severity.WARNING
-    #     elif level == "ERROR":
-    #         return Severity.ERROR
-    #     elif level == "CRITICAL":
-    #         return Severity.CRITICAL

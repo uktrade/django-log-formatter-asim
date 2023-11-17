@@ -29,15 +29,27 @@ class User:
         return f"{self.first_name} {self.last_name}"
 
 
+@pytest.fixture
+def fruit_bowl():
+    return [Fruit("apple"), Fruit("banana")]
+
+
 class TestASIMFormatter:
     # Note that we are explicitly expecting None for properties we are unable to supply
 
-    def setUp(self):
-        self.factory = RequestFactory()
+    # def __init__(self):
+    #     self.factory = RequestFactory()
 
+    @pytest.mark.parametrize(
+        "logger_name",
+        [
+            ("django"),
+            ("django.request"),
+        ],
+    )
     @freeze_time("2023-10-17 07:15:30")
-    def test_system_formatter_logs_common_event_fields(self):
-        logger, log_buffer = self._create_logger("django")
+    def test_formatter_logs_common_event_fields(self, logger_name):
+        logger, log_buffer = self._create_logger(logger_name)
 
         logger.debug("Test")
 
@@ -72,29 +84,17 @@ class TestASIMFormatter:
         assert output["EventSchema"] == "ProcessEvent"
         assert output["EventReportUrl"] is None
         assert output["EventOwner"] is None
-        # Device fields...
-        # Dvc	Alias	String	A unique identifier of the device on which the event occurred or which reported the event, depending on the schema.
-        # DvcIpAddr	Recommended	IP address	The IP address of the device on which the event occurred or which reported the event, depending on the schema.
-        # DvcHostname	Recommended	Hostname	The hostname of the device on which the event occurred or which reported the event, depending on the schema.
-        # DvcDomain	Recommended	String	The domain of the device on which the event occurred or which reported the event, depending on the schema.
-        # DvcDomainType	Conditional	Enumerated	The type of DvcDomain. For a list of allowed values and further information, refer to DomainType.
-        # DvcFQDN	Optional	String	The hostname of the device on which the event occurred or which reported the event, depending on the schema.
-        # DvcDescription	Optional	String	A descriptive text associated with the device. For example: Primary Domain Controller.
-        # DvcId	Optional	String	The unique ID of the device on which the event occurred or which reported the event, depending on the schema.
-        # DvcIdType	Conditional	Enumerated	The type of DvcId. For a list of allowed values and further information, refer to DvcIdType.
-        # DvcMacAddr	Optional	MAC	The MAC address of the device on which the event occurred or which reported the event.
-        # DvcZone	Optional	String	The network on which the event occurred or which reported the event, depending on the schema. The zone is defined by the reporting device.
-        # DvcOs	Optional	String	The operating system running on the device on which the event occurred or which reported the event.
-        # DvcOsVersion	Optional	String	The version of the operating system on the device on which the event occurred or which reported the event.
-        # DvcAction	Recommended	String	For reporting security systems, the action taken by the system, if applicable.
-        # DvcOriginalAction	Optional	String	The original DvcAction as provided by the reporting device.
-        # DvcInterface	Optional	String	The network interface on which data was captured. This field is typically relevant to network related activity, which is captured by an intermediate or tap device.
-        # DvcScopeId	Optional	String	The cloud platform scope ID the device belongs to. DvcScopeId map to a subscription ID on Azure and to an account ID on AWS.
-        # DvcScope	Optional	String	The cloud platform scope the device belongs to. DvcScope map to a subscription ID on Azure and to an account ID on AWS.
 
+    @pytest.mark.parametrize(
+        "logger_name",
+        [
+            ("django"),
+            ("django.request"),
+        ],
+    )
     @freeze_time("2023-10-17 07:15:30")
-    def test_system_formatter_logs_common_other_fields(self):
-        logger, log_buffer = self._create_logger("django")
+    def test_formatter_logs_common_other_fields(self, logger_name):
+        logger, log_buffer = self._create_logger(logger_name)
 
         logger.debug("Test")
 
@@ -102,7 +102,9 @@ class TestASIMFormatter:
         output = json.loads(json_output)
         # We are not checking the whole object here as it would be brittle,
         # and we can trust Python to get it right
-        assert '{"name": "django", "msg": "Test",' in output["AdditionalFields"]
+        assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
+        if logger_name == "django.request":
+            assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
         assert output["ASimMatchingIpAddr"] is None
         assert output["ASimMatchingHostname"] is None
 
@@ -127,7 +129,7 @@ class TestASIMFormatter:
             ("critical", "High"),
         ],
     )
-    def test_system_formatter_logs_correct_severity(self, log_method_name, expected_severity):
+    def test_formatter_logs_correct_severity(self, log_method_name, expected_severity):
         logger, log_buffer = self._create_logger("django")
         log_method = getattr(logger, log_method_name)
 
@@ -138,10 +140,49 @@ class TestASIMFormatter:
         assert output["EventSeverity"] == expected_severity
         assert output["EventOriginalSeverity"] == str(log_method_name).upper()
 
-    # def test_request_formatting(self):
-    #     output = self._create_request_log()
-    #
-    #     assert output["event"]["message"] == "Request test"
+    def test_request_formatter_logs_source_fields(self):
+        logger, log_buffer = self._create_logger("django.request")
+        expected_remote_address = "10.9.8.7"
+        expected_server_port = "567"
+        expected_user_agent = "some user agent"
+        request = self._create_request(
+            overrides={
+                "remote_address": expected_remote_address,
+                "server_port": expected_server_port,
+                "user_agent": expected_user_agent,
+            }
+        )
+
+        logger.debug(
+            msg="Test",
+            extra={
+                "request": request,
+            },
+        )
+
+        json_output = log_buffer.getvalue()
+        output = json.loads(json_output)
+
+        assert output["Src"] is None
+        assert output["SrcIpAddr"] == expected_remote_address
+        assert output["IpAddr"] == expected_remote_address  # Todo: Confirm if needed
+        assert output["SrcPortNumber"] == expected_server_port
+        assert output["SrcHostname"] is None
+        assert output["SrcHostname"] is None
+        assert output["SrcDomain"] is None
+        assert output["SrcDomainType"] is None
+        assert output["SrcFQDN"] is None
+        assert output["SrcDescription"] == expected_user_agent
+        assert output["SrcDvcId"] is None
+        assert output["SrcDvcScopeId"] is None
+        assert output["SrcDvcScope"] is None
+        assert output["SrcDvcIdType"] is None
+        assert output["SrcDeviceType"] is None
+        assert output["SrcSubscriptionId"] is None
+        assert output["SrcGeoCountry"] is None
+        assert output["SrcGeoCity"] is None
+        assert output["SrcGeoLatitude"] is None
+        assert output["SrcGeoLongitude"] is None
 
     # def test_log_sensitive_user_data_default(self):
     #     output = self._create_request_log(add_user=True)
@@ -187,8 +228,20 @@ class TestASIMFormatter:
 
         return logger, log_buffer
 
-    def _create_request_log(self, add_user=False):
-        request = self.factory.get("/")
+    def _create_request(self, add_user=False, overrides=None):
+        if overrides is None:
+            overrides = {}
+        request = RequestFactory().get(path="/")
+
+        if overrides.get("remote_address"):
+            request.environ["REMOTE_ADDR"] = overrides.get("remote_address")
+            request.META["REMOTE_ADDR"] = overrides.get("remote_address")
+
+        if overrides.get("server_port"):
+            request.environ["SERVER_PORT"] = overrides.get("server_port")
+
+        if overrides.get("user_agent"):
+            request.headers.__setattr__("USER_AGENT", overrides.get("user_agent"))
 
         if add_user:
             user = User(
@@ -200,14 +253,4 @@ class TestASIMFormatter:
             )
             setattr(request, "user", user)
 
-        logger, log_buffer = self._create_logger("django.request")
-        logger.error(
-            msg="Request test",
-            extra={
-                "request": request,
-            },
-        )
-
-        json_output = log_buffer.getvalue()
-
-        return json.loads(json_output)
+        return request
