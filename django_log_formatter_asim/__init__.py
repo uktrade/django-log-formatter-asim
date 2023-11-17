@@ -3,6 +3,7 @@ import logging
 import os
 import platform
 from urllib.parse import urlparse
+from datetime import datetime
 
 from django.conf import settings
 
@@ -28,11 +29,13 @@ class ASIMFormatterBase:
         self.record = record
 
     def _get_log_dict_base(self):
-        return {
-            "EventMessage": self.record.msg,
-            "EventCount": 1
-            # EventStartTime	Mandatory	Date/time	The time in which the event started. If the source supports aggregation and the record represents multiple events, the time that the first event was generated. If not provided by the source record, this field aliases the TimeGenerated field.
-            # EventEndTime	Mandatory	Date/time	The time in which the event ended. If the source supports aggregation and the record represents multiple events, the time that the last event was generated. If not provided by the source record, this field aliases the TimeGenerated field.
+        record = self.record
+        log_time = datetime.utcfromtimestamp(record.created).isoformat()
+        log_dict = {
+            "EventMessage": record.msg,
+            "EventCount": 1,
+            "EventStartTime": log_time,
+            "EventEndTime": log_time,
             # EventType	Mandatory	Enumerated	Describes the operation reported by the record. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalType field.
             # EventSubType	Optional	Enumerated	Describes a subdivision of the operation reported in the EventType field. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalSubType field.
             # EventResult	Mandatory	Enumerated	One of the following values: Success, Partial, Failure, NA (Not Applicable).
@@ -75,6 +78,7 @@ class ASIMFormatterBase:
             # ASimMatchingIpAddr	Recommended	String	When a parser uses the ipaddr_has_any_prefix filtering parameters, this field is set with the one of the values SrcIpAddr, DstIpAddr, or Both to reflect the matching fields or fields.
             # ASimMatchingHostname	Recommended	String	When a parser uses the hostname_has_any filtering parameters, this field is set with the one of the values SrcHostname, DstHostname, or Both to reflect the matching fields or fields.
         }
+        return log_dict
 
     # def _get_event_base(self, extra_labels={}):
     #     labels = {

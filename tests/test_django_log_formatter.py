@@ -4,7 +4,7 @@ import os
 from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
-
+from freezegun import freeze_time
 from django.conf import settings
 from django.test import RequestFactory
 from django.test import override_settings
@@ -70,16 +70,19 @@ class ASIMFormatterTest(TestCase):
 
         return json.loads(json_output)
 
+    @freeze_time("2023-10-17 07:15:30")
     def test_system_formatter_logs_common_fields(self):
         logger, log_buffer = self._create_logger("django")
+
         logger.debug("Test")
+
         json_output = log_buffer.getvalue()
         output = json.loads(json_output)
-
+        expected_log_time = "2023-10-17T07:15:30"
         assert output["EventMessage"] == "Test"
         assert output["EventCount"] == 1
-        # EventStartTime
-        # EventEndTime
+        assert output["EventStartTime"] == expected_log_time
+        assert output["EventEndTime"] == expected_log_time
         # EventType
         # EventResult
         # EventSeverity
