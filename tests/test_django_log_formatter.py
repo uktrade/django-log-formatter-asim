@@ -96,7 +96,7 @@ class TestASIMFormatter:
         )
         assert output["Src"] is None
         assert output["SrcIpAddr"] == expected_remote_address
-        assert output["IpAddr"] == expected_remote_address  # Todo: Confirm if needed
+        assert output["IpAddr"] == expected_remote_address
         assert output["SrcPortNumber"] == expected_server_port
         assert output["SrcHostname"] is None
         assert output["SrcHostname"] is None
