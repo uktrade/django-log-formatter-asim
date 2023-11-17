@@ -30,45 +30,10 @@ class User:
 
 
 class TestASIMFormatter:
+    # Note that we are explicitly expecting None for properties we are unable to supply
+
     def setUp(self):
         self.factory = RequestFactory()
-
-    def _create_logger(self, logger_name):
-        log_buffer = StringIO()
-        asim_handler = logging.StreamHandler(log_buffer)
-        asim_handler.setFormatter(ASIMFormatter())
-
-        logger = logging.getLogger(logger_name)
-        logger.addHandler(asim_handler)
-        logger.setLevel(logging.DEBUG)
-        logging.propagate = False
-
-        return logger, log_buffer
-
-    def _create_request_log(self, add_user=False):
-        request = self.factory.get("/")
-
-        if add_user:
-            user = User(
-                email="test@test.com",
-                user_id=1,
-                first_name="John",
-                last_name="Test",
-                username="johntest",
-            )
-            setattr(request, "user", user)
-
-        logger, log_buffer = self._create_logger("django.request")
-        logger.error(
-            msg="Request test",
-            extra={
-                "request": request,
-            },
-        )
-
-        json_output = log_buffer.getvalue()
-
-        return json.loads(json_output)
 
     @freeze_time("2023-10-17 07:15:30")
     def test_system_formatter_logs_common_event_fields(self):
@@ -76,11 +41,9 @@ class TestASIMFormatter:
 
         logger.debug("Test")
 
-        # Note that we are explicitly expecting None for properties we are unable to supply
         json_output = log_buffer.getvalue()
         output = json.loads(json_output)
         expected_log_time = "2023-10-17T07:15:30"
-        # Event fields...
         assert output["EventMessage"] == "Test"
         assert output["EventCount"] == 1
         assert output["EventStartTime"] == expected_log_time
@@ -128,10 +91,20 @@ class TestASIMFormatter:
         # DvcInterface	Optional	String	The network interface on which data was captured. This field is typically relevant to network related activity, which is captured by an intermediate or tap device.
         # DvcScopeId	Optional	String	The cloud platform scope ID the device belongs to. DvcScopeId map to a subscription ID on Azure and to an account ID on AWS.
         # DvcScope	Optional	String	The cloud platform scope the device belongs to. DvcScope map to a subscription ID on Azure and to an account ID on AWS.
-        # Other fields...
-        # AdditionalFields	Optional	Dynamic	If your source provides additional information worth preserving, either keep it with the original field names or create the dynamic AdditionalFields field, and add to it the extra information as key/value pairs.
-        # ASimMatchingIpAddr	Recommended	String	When a parser uses the ipaddr_has_any_prefix filtering parameters, this field is set with the one of the values SrcIpAddr, DstIpAddr, or Both to reflect the matching fields or fields.
-        # ASimMatchingHostname	Recommended	String	When a parser uses the hostname_has_any filtering parameters, this field is set with the one of the values SrcHostname, DstHostname, or Both to reflect the matching fields or fields.
+
+    @freeze_time("2023-10-17 07:15:30")
+    def test_system_formatter_logs_common_other_fields(self):
+        logger, log_buffer = self._create_logger("django")
+
+        logger.debug("Test")
+
+        json_output = log_buffer.getvalue()
+        output = json.loads(json_output)
+        # We are not checking the whole object here as it would be brittle,
+        # and we can trust Python to get it right
+        assert '{"name": "django", "msg": "Test",' in output["AdditionalFields"]
+        assert output["ASimMatchingIpAddr"] is None
+        assert output["ASimMatchingHostname"] is None
 
     def test_system_formatter_logs_process_event_fields(self):
         logger, log_buffer = self._create_logger("django")
@@ -201,3 +174,40 @@ class TestASIMFormatter:
     #     output = self._create_request_log()
     #
     #     assert output["event"]["labels"]["env"] == "settings.Test"
+
+    def _create_logger(self, logger_name):
+        log_buffer = StringIO()
+        asim_handler = logging.StreamHandler(log_buffer)
+        asim_handler.setFormatter(ASIMFormatter())
+
+        logger = logging.getLogger(logger_name)
+        logger.addHandler(asim_handler)
+        logger.setLevel(logging.DEBUG)
+        logging.propagate = False
+
+        return logger, log_buffer
+
+    def _create_request_log(self, add_user=False):
+        request = self.factory.get("/")
+
+        if add_user:
+            user = User(
+                email="test@test.com",
+                user_id=1,
+                first_name="John",
+                last_name="Test",
+                username="johntest",
+            )
+            setattr(request, "user", user)
+
+        logger, log_buffer = self._create_logger("django.request")
+        logger.error(
+            msg="Request test",
+            extra={
+                "request": request,
+            },
+        )
+
+        json_output = log_buffer.getvalue()
+
+        return json.loads(json_output)

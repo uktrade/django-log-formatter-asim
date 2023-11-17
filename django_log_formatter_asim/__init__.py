@@ -33,6 +33,7 @@ class ASIMFormatterBase:
         log_time = datetime.utcfromtimestamp(record.created).isoformat()
         # See test_django_log_formatter.py for comments and thinking around these
         log_dict = {
+            # Event fields...
             "EventMessage": record.msg,
             "EventCount": 1,
             "EventStartTime": log_time,
@@ -75,9 +76,9 @@ class ASIMFormatterBase:
             # DvcScopeId	Optional	String	The cloud platform scope ID the device belongs to. DvcScopeId map to a subscription ID on Azure and to an account ID on AWS.
             # DvcScope	Optional	String	The cloud platform scope the device belongs to. DvcScope map to a subscription ID on Azure and to an account ID on AWS.
             # Other fields...
-            # AdditionalFields	Optional	Dynamic	If your source provides additional information worth preserving, either keep it with the original field names or create the dynamic AdditionalFields field, and add to it the extra information as key/value pairs.
-            # ASimMatchingIpAddr	Recommended	String	When a parser uses the ipaddr_has_any_prefix filtering parameters, this field is set with the one of the values SrcIpAddr, DstIpAddr, or Both to reflect the matching fields or fields.
-            # ASimMatchingHostname	Recommended	String	When a parser uses the hostname_has_any filtering parameters, this field is set with the one of the values SrcHostname, DstHostname, or Both to reflect the matching fields or fields.
+            "AdditionalFields": json.dumps(record.__dict__),
+            "ASimMatchingIpAddr": None,
+            "ASimMatchingHostname": None,
         }
         return log_dict
 
