@@ -36,22 +36,22 @@ class ASIMFormatterBase:
             "EventCount": 1,
             "EventStartTime": log_time,
             "EventEndTime": log_time,
-            # EventType	Mandatory	Enumerated	Describes the operation reported by the record. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalType field.
-            # EventSubType	Optional	Enumerated	Describes a subdivision of the operation reported in the EventType field. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalSubType field.
-            # EventResult	Mandatory	Enumerated	One of the following values: Success, Partial, Failure, NA (Not Applicable).
-            # EventResultDetails	Recommended	Enumerated	Reason or details for the result reported in the EventResult field. Each schema documents the list of values valid for this field. The original, source specific, value is stored in the EventOriginalResultDetails field.
-            # EventUid	Recommended	String	The unique ID of the record, as assigned by Microsoft Sentinel. This field is typically mapped to the _ItemId Log Analytics field.
-            # EventOriginalUid	Optional	String	A unique ID of the original record, if provided by the source.
-            # EventOriginalType	Optional	String	The original event type or ID, if provided by the source. For example, this field is used to store the original Windows event ID. This value is used to derive EventType, which should have only one of the values documented for each schema.
-            # EventOriginalSubType	Optional	String	The original event subtype or ID, if provided by the source. For example, this field is used to store the original Windows logon type. This value is used to derive EventSubType, which should have only one of the values documented for each schema.
-            # EventOriginalResultDetails	Optional	String	The original result details provided by the source. This value is used to derive EventResultDetails, which should have only one of the values documented for each schema.
-            # EventSeverity	Recommended	Enumerated	The severity of the event. Valid values are: Informational, Low, Medium, or High.
-            # EventOriginalSeverity	Optional	String	The original severity as provided by the reporting device. This value is used to derive EventSeverity.
+            "EventType": "ProcessCreated",
+            "EventSubType": None,
+            "EventResult": "NA",
+            "EventResultDetails": None,
+            "EventUid": None,
+            "EventOriginalUid": None,
+            "EventOriginalType": None,
+            "EventOriginalSubType": None,
+            "EventOriginalResultDetails": None,
+            # "EventSeverity": None,
+            # "EventOriginalSeverity": None,
             # EventProduct	Mandatory	String	The product generating the event. The value should be one of the values listed in Vendors and Products.
             # EventProductVersion	Optional	String	The version of the product generating the event.
             # EventVendor	Mandatory	String	The vendor of the product generating the event. The value should be one of the values listed in Vendors and Products.
-            # EventSchema	Mandatory	String	The schema the event is normalized to. Each schema documents its schema name.
-            # EventSchemaVersion	Mandatory	String	The version of the schema. Each schema documents its current version.
+            "EventSchema": "ProcessEvent",
+            "EventSchemaVersion": "0.1.4",
             # EventReportUrl	Optional	String	A URL provided in the event for a resource that provides more information about the event.
             # EventOwner	Optional	String	The owner of the event, which is usually the department or subsidiary in which it was generated.
             # Device fields...
