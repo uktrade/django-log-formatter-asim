@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import platform
-import pickle
 from urllib.parse import urlparse
 from datetime import datetime
 
