@@ -80,6 +80,7 @@ class TestASIMFormatter:
         json_output = log_buffer.getvalue()
         output = json.loads(json_output)
         expected_log_time = "2023-10-17T07:15:30"
+        # Event fields...
         assert output["EventMessage"] == "Test"
         assert output["EventCount"] == 1
         assert output["EventStartTime"] == expected_log_time
@@ -104,10 +105,10 @@ class TestASIMFormatter:
         assert output["EventProduct"] == "Django"
         assert output["EventProductVersion"] is None
         assert output["EventVendor"] == "Django"
-        # EventSchema	Mandatory	String	The schema the event is normalized to. Each schema documents its schema name.
-        # EventSchemaVersion	Mandatory	String	The version of the schema. Each schema documents its current version.
-        # EventReportUrl	Optional	String	A URL provided in the event for a resource that provides more information about the event.
-        # EventOwner	Optional	String	The owner of the event, which is usually the department or subsidiary in which it was generated.
+        assert output["EventSchemaVersion"] == "0.1.4"
+        assert output["EventSchema"] == "ProcessEvent"
+        assert output["EventReportUrl"] is None
+        assert output["EventOwner"] is None
         # Device fields...
         # Dvc	Alias	String	A unique identifier of the device on which the event occurred or which reported the event, depending on the schema.
         # DvcIpAddr	Recommended	IP address	The IP address of the device on which the event occurred or which reported the event, depending on the schema.
