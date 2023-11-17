@@ -47,9 +47,9 @@ class ASIMFormatterBase:
             "EventOriginalResultDetails": None,
             "EventSeverity": self._get_event_severity(record.levelname),
             "EventOriginalSeverity": record.levelname,
-            # EventProduct	Mandatory	String	The product generating the event. The value should be one of the values listed in Vendors and Products.
-            # EventProductVersion	Optional	String	The version of the product generating the event.
-            # EventVendor	Mandatory	String	The vendor of the product generating the event. The value should be one of the values listed in Vendors and Products.
+            "EventProduct": "Django",
+            "EventProductVersion": None,
+            "EventVendor": "Django",
             "EventSchema": "ProcessEvent",
             "EventSchemaVersion": "0.1.4",
             # EventReportUrl	Optional	String	A URL provided in the event for a resource that provides more information about the event.

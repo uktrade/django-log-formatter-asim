@@ -86,7 +86,7 @@ class TestASIMFormatter:
         assert output["EventEndTime"] == expected_log_time
         assert output["EventType"] == "ProcessCreated"
         assert output["EventSubType"] is None
-        # We don't have anything for EventResult, but mandatory one of
+        # We don't have anything for EventResult, but it is mandatory and one of
         # Success, Partial, Failure, NA (Not Applicable).
         assert output["EventResult"] == "NA"
         assert output["EventResultDetails"] is None
@@ -97,9 +97,13 @@ class TestASIMFormatter:
         assert output["EventOriginalResultDetails"] is None
         assert output["EventSeverity"] == "Informational"
         assert output["EventOriginalSeverity"] == "DEBUG"
-        # EventProduct	Mandatory	String	The product generating the event. The value should be one of the values listed in Vendors and Products.
-        # EventProductVersion	Optional	String	The version of the product generating the event.
-        # EventVendor	Mandatory	String	The vendor of the product generating the event. The value should be one of the values listed in Vendors and Products.
+        # EventProduct and EventVendor are mandatory, but we don't have anything tha matches the
+        # allowed values from
+        # https://learn.microsoft.com/en-us/azure/sentinel/normalization-common-fields#vendors-and-products
+        # so we will use "Django" for both.
+        assert output["EventProduct"] == "Django"
+        assert output["EventProductVersion"] is None
+        assert output["EventVendor"] == "Django"
         # EventSchema	Mandatory	String	The schema the event is normalized to. Each schema documents its schema name.
         # EventSchemaVersion	Mandatory	String	The version of the schema. Each schema documents its current version.
         # EventReportUrl	Optional	String	A URL provided in the event for a resource that provides more information about the event.
