@@ -107,9 +107,9 @@ class ASIMRequestFormatter(ASIMFormatterBase):
 
         # Source fields...
         log_dict["Src"] = None
-        log_dict["SrcIpAddr"] = record.request.environ["REMOTE_ADDR"]
+        log_dict["SrcIpAddr"] = record.request.environ.get("REMOTE_ADDR", None)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
-        log_dict["SrcPortNumber"] = record.request.environ["SERVER_PORT"]
+        log_dict["SrcPortNumber"] = record.request.environ.get("SERVER_PORT", None)
         log_dict["SrcHostname"] = None
         log_dict["SrcHostname"] = None
         log_dict["SrcDomain"] = None

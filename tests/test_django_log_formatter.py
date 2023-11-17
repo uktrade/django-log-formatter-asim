@@ -29,95 +29,22 @@ class User:
         return f"{self.first_name} {self.last_name}"
 
 
-@pytest.fixture
-def fruit_bowl():
-    return [Fruit("apple"), Fruit("banana")]
-
-
 class TestASIMFormatter:
     # Note that we are explicitly expecting None for properties we are unable to supply
 
-    # def __init__(self):
-    #     self.factory = RequestFactory()
-
-    @pytest.mark.parametrize(
-        "logger_name",
-        [
-            ("django"),
-            ("django.request"),
-        ],
-    )
     @freeze_time("2023-10-17 07:15:30")
-    def test_formatter_logs_common_event_fields(self, logger_name):
+    def test_system_formatter_logs_correct_fields(self):
+        logger_name = "django"
         logger, log_buffer = self._create_logger(logger_name)
 
         logger.debug("Test")
 
-        json_output = log_buffer.getvalue()
-        output = json.loads(json_output)
-        expected_log_time = "2023-10-17T07:15:30"
-        assert output["EventMessage"] == "Test"
-        assert output["EventCount"] == 1
-        assert output["EventStartTime"] == expected_log_time
-        assert output["EventEndTime"] == expected_log_time
-        assert output["EventType"] == "ProcessCreated"
-        assert output["EventSubType"] is None
-        # We don't have anything for EventResult, but it is mandatory and one of
-        # Success, Partial, Failure, NA (Not Applicable).
-        assert output["EventResult"] == "NA"
-        assert output["EventResultDetails"] is None
-        assert output["EventUid"] is None
-        assert output["EventOriginalUid"] is None
-        assert output["EventOriginalType"] is None
-        assert output["EventOriginalSubType"] is None
-        assert output["EventOriginalResultDetails"] is None
-        assert output["EventSeverity"] == "Informational"
-        assert output["EventOriginalSeverity"] == "DEBUG"
-        # EventProduct and EventVendor are mandatory, but we don't have anything tha matches the
-        # allowed values from
-        # https://learn.microsoft.com/en-us/azure/sentinel/normalization-common-fields#vendors-and-products
-        # so we will use "Django" for both.
-        assert output["EventProduct"] == "Django"
-        assert output["EventProductVersion"] is None
-        assert output["EventVendor"] == "Django"
-        assert output["EventSchemaVersion"] == "0.1.4"
-        assert output["EventSchema"] == "ProcessEvent"
-        assert output["EventReportUrl"] is None
-        assert output["EventOwner"] is None
-
-    @pytest.mark.parametrize(
-        "logger_name",
-        [
-            ("django"),
-            ("django.request"),
-        ],
-    )
-    @freeze_time("2023-10-17 07:15:30")
-    def test_formatter_logs_common_other_fields(self, logger_name):
-        logger, log_buffer = self._create_logger(logger_name)
-
-        logger.debug("Test")
-
-        json_output = log_buffer.getvalue()
-        output = json.loads(json_output)
-        # We are not checking the whole object here as it would be brittle,
-        # and we can trust Python to get it right
-        assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
-        if logger_name == "django.request":
-            assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
-        assert output["ASimMatchingIpAddr"] is None
-        assert output["ASimMatchingHostname"] is None
-
-    def test_system_formatter_logs_process_event_fields(self):
-        logger, log_buffer = self._create_logger("django")
-
-        logger.debug("Does not matter")
-
-        json_output = log_buffer.getvalue()
-        output = json.loads(json_output)
-        assert output["EventType"] == "ProcessCreated"
-        assert output["EventSchemaVersion"] == "0.1.4"
-        assert output["EventSchema"] == "ProcessEvent"
+        output = self._get_json_log_entry(log_buffer)
+        self._assert_base_fields(
+            expected_log_time="2023-10-17T07:15:30",
+            logger_name=logger_name,
+            output=output,
+        )
 
     @pytest.mark.parametrize(
         "log_method_name, expected_severity",
@@ -135,13 +62,14 @@ class TestASIMFormatter:
 
         log_method("Does not matter")
 
-        json_output = log_buffer.getvalue()
-        output = json.loads(json_output)
+        output = self._get_json_log_entry(log_buffer)
         assert output["EventSeverity"] == expected_severity
         assert output["EventOriginalSeverity"] == str(log_method_name).upper()
 
-    def test_request_formatter_logs_source_fields(self):
-        logger, log_buffer = self._create_logger("django.request")
+    @freeze_time("2023-10-17 07:15:30")
+    def test_request_formatter_logs_correct_fields(self):
+        logger_name = "django.request"
+        logger, log_buffer = self._create_logger(logger_name)
         expected_remote_address = "10.9.8.7"
         expected_server_port = "567"
         expected_user_agent = "some user agent"
@@ -160,9 +88,12 @@ class TestASIMFormatter:
             },
         )
 
-        json_output = log_buffer.getvalue()
-        output = json.loads(json_output)
-
+        output = self._get_json_log_entry(log_buffer)
+        self._assert_base_fields(
+            expected_log_time="2023-10-17T07:15:30",
+            logger_name=logger_name,
+            output=output,
+        )
         assert output["Src"] is None
         assert output["SrcIpAddr"] == expected_remote_address
         assert output["IpAddr"] == expected_remote_address  # Todo: Confirm if needed
@@ -254,3 +185,46 @@ class TestASIMFormatter:
             setattr(request, "user", user)
 
         return request
+
+    def _get_json_log_entry(self, log_buffer):
+        json_output = log_buffer.getvalue()
+        return json.loads(json_output)
+
+    def _assert_base_fields(self, expected_log_time, logger_name, output):
+        # Event fields...
+        assert output["EventMessage"] == "Test"
+        assert output["EventCount"] == 1
+        assert output["EventStartTime"] == expected_log_time
+        assert output["EventEndTime"] == expected_log_time
+        assert output["EventType"] == "ProcessCreated"
+        assert output["EventSubType"] is None
+        # We don't have anything for EventResult, but it is mandatory and one of
+        # Success, Partial, Failure, NA (Not Applicable).
+        assert output["EventResult"] == "NA"
+        assert output["EventResultDetails"] is None
+        assert output["EventUid"] is None
+        assert output["EventOriginalUid"] is None
+        assert output["EventOriginalType"] is None
+        assert output["EventOriginalSubType"] is None
+        assert output["EventOriginalResultDetails"] is None
+        assert output["EventSeverity"] == "Informational"
+        assert output["EventOriginalSeverity"] == "DEBUG"
+        # EventProduct and EventVendor are mandatory, but we don't have anything tha matches the
+        # allowed values from
+        # https://learn.microsoft.com/en-us/azure/sentinel/normalization-common-fields#vendors-and-products
+        # so we will use "Django" for both.
+        assert output["EventProduct"] == "Django"
+        assert output["EventProductVersion"] is None
+        assert output["EventVendor"] == "Django"
+        assert output["EventSchemaVersion"] == "0.1.4"
+        assert output["EventSchema"] == "ProcessEvent"
+        assert output["EventReportUrl"] is None
+        assert output["EventOwner"] is None
+        # Additional fields...
+        # We are not checking the whole object here as it would be brittle,
+        # and we can trust Python to get it right
+        assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
+        if logger_name == "django.request":
+            assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
+        assert output["ASimMatchingIpAddr"] is None
+        assert output["ASimMatchingHostname"] is None
