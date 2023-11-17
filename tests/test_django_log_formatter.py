@@ -71,7 +71,7 @@ class TestASIMFormatter:
         return json.loads(json_output)
 
     @freeze_time("2023-10-17 07:15:30")
-    def test_system_formatter_logs_common_fields(self):
+    def test_system_formatter_logs_common_event_fields(self):
         logger, log_buffer = self._create_logger("django")
 
         logger.debug("Test")

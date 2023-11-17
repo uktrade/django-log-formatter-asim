@@ -31,6 +31,7 @@ class ASIMFormatterBase:
     def _get_log_dict_base(self):
         record = self.record
         log_time = datetime.utcfromtimestamp(record.created).isoformat()
+        # See test_django_log_formatter.py for comments and thinking around these
         log_dict = {
             "EventMessage": record.msg,
             "EventCount": 1,
@@ -52,8 +53,8 @@ class ASIMFormatterBase:
             "EventVendor": "Django",
             "EventSchema": "ProcessEvent",
             "EventSchemaVersion": "0.1.4",
-            # EventReportUrl	Optional	String	A URL provided in the event for a resource that provides more information about the event.
-            # EventOwner	Optional	String	The owner of the event, which is usually the department or subsidiary in which it was generated.
+            "EventReportUrl": None,
+            "EventOwner": None,
             # Device fields...
             # Dvc	Alias	String	A unique identifier of the device on which the event occurred or which reported the event, depending on the schema.
             # DvcIpAddr	Recommended	IP address	The IP address of the device on which the event occurred or which reported the event, depending on the schema.
