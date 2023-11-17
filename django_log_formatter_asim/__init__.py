@@ -102,20 +102,20 @@ class ASIMRequestFormatter(ASIMFormatterBase):
     def get_log_dict(self):
         log_dict = self._get_log_dict_base()
 
-        record = self.record
+        request = self.record.request
 
         # Source fields...
         log_dict["Src"] = None
-        log_dict["SrcIpAddr"] = record.request.environ.get("REMOTE_ADDR", None)
+        log_dict["SrcIpAddr"] = request.environ.get("REMOTE_ADDR", None)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
-        log_dict["SrcPortNumber"] = record.request.environ.get("SERVER_PORT", None)
+        log_dict["SrcPortNumber"] = request.environ.get("SERVER_PORT", None)
         log_dict["SrcHostname"] = None
         log_dict["SrcHostname"] = None
         log_dict["SrcDomain"] = None
         log_dict["SrcDomainType"] = None
         log_dict["SrcFQDN"] = None
         # Todo: Unsure if correct property for the user agent...
-        log_dict["SrcDescription"] = record.request.headers.USER_AGENT
+        log_dict["SrcDescription"] = request.headers.USER_AGENT
         log_dict["SrcDvcId"] = None
         log_dict["SrcDvcScopeId"] = None
         log_dict["SrcDvcScope"] = None
