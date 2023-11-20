@@ -163,7 +163,9 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         if user:
             user_id = getattr(user, "id", None)
             if getattr(settings, "DLFE_LOG_SENSITIVE_USER_DATA", False):
-                username = getattr(user, "username", getattr(user, "email", None))
+                username = getattr(user, "username", None)
+                if not username:
+                    username = getattr(user, "email", None)
             else:
                 username = "REDACTED"
         log_dict["SrcUserId"] = user_id

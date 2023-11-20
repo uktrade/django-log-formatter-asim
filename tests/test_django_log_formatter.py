@@ -23,6 +23,9 @@ class User:
         self.last_name = last_name
         self.username = username
 
+    def unset_username(self):
+        self.username = None
+
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
 
@@ -129,7 +132,7 @@ class TestASIMFormatter:
         )
 
         output = self._get_json_log_entry(log_buffer)
-        assert output["SrcUserId"] is not None
+        assert output["SrcUserId"] == "a1b2c3"
         assert output["SrcUsername"] == "REDACTED"
 
     def test_logs_username_when_log_sensitive_user_data_is_on(self):
@@ -145,8 +148,23 @@ class TestASIMFormatter:
         )
 
         output = self._get_json_log_entry(log_buffer)
-        assert output["SrcUserId"] is not None
         assert output["SrcUsername"] == "johntest"
+
+    def test_logs_email_as_username_when_username_is_not_set(self):
+        settings.DLFE_LOG_SENSITIVE_USER_DATA = True
+        logger, log_buffer = self._create_logger("django.request")
+        overrides = {
+            "user": self._create_user(),
+        }
+        overrides["user"].unset_username()
+
+        self._create_request_log(
+            logger,
+            overrides,
+        )
+
+        output = self._get_json_log_entry(log_buffer)
+        assert output["SrcUsername"] == "john@test.com"
 
     # @override_settings(DLFE_APP_NAME="TestApp")
     # def test_app_name_log_value(self):
@@ -200,7 +218,7 @@ class TestASIMFormatter:
     def _create_user(self):
         return User(
             email="john@test.com",
-            user_id=1,
+            user_id="a1b2c3",
             first_name="John",
             last_name="Test",
             username="johntest",
