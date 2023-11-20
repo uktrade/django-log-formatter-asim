@@ -15,7 +15,6 @@ class ASIMFormatterBase:
     def _get_log_dict_base(self):
         record = self.record
         log_time = datetime.utcfromtimestamp(record.created).isoformat()
-        # See test_django_log_formatter.py for comments and thinking around these
         log_dict = {
             # Event fields...
             "EventMessage": record.msg,
@@ -23,27 +22,16 @@ class ASIMFormatterBase:
             "EventStartTime": log_time,
             "EventEndTime": log_time,
             "EventType": "ProcessCreated",
-            "EventSubType": None,
             "EventResult": "NA",
-            "EventResultDetails": None,
-            "EventUid": None,
-            "EventOriginalUid": None,
-            "EventOriginalType": None,
-            "EventOriginalSubType": None,
-            "EventOriginalResultDetails": None,
             "EventSeverity": self._get_event_severity(record.levelname),
             "EventOriginalSeverity": record.levelname,
-            "EventProduct": "Django",
-            "EventProductVersion": None,
-            "EventVendor": "Django",
             "EventSchema": "ProcessEvent",
             "EventSchemaVersion": "0.1.4",
-            "EventReportUrl": None,
-            "EventOwner": None,
+            # Acting Application fields...
+            "ActiveAppName": getattr(settings, "DLFA_APP_NAME", None),
+            "ActingAppType": "Django",
             # Other fields...
             "AdditionalFields": json.dumps(record, default=lambda o: vars(o)),
-            "ASimMatchingIpAddr": None,
-            "ASimMatchingHostname": None,
         }
         return log_dict
 
@@ -59,7 +47,7 @@ class ASIMFormatterBase:
 
     # def _get_event_base(self, extra_labels={}):
     #     labels = {
-    #         "application": getattr(settings, "DLFE_APP_NAME", None),
+    #         "application": getattr(settings, "DLFA_APP_NAME", None),
     #         "env": self._get_environment(),
     #     }
     #
@@ -105,32 +93,19 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         request = self.record.request
 
         # Source fields...
-        log_dict["Src"] = None
         log_dict["SrcIpAddr"] = request.environ.get("REMOTE_ADDR", None)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
         log_dict["SrcPortNumber"] = request.environ.get("SERVER_PORT", None)
-        log_dict["SrcHostname"] = None
-        log_dict["SrcHostname"] = None
-        log_dict["SrcDomain"] = None
-        log_dict["SrcDomainType"] = None
-        log_dict["SrcFQDN"] = None
+        log_dict["SrcDescription"] = getattr(request.headers, "USER_AGENT", None)
+
+        # Acting Application fields...
         # Todo: Unsure of correct property for the user agent...
         # Might come from the following in order of priority
         #     request.user_agent
         #     request.headers.user_agent
         #     request.META.HTTP_USER_AGENT?
         # Probably need tests for all three
-        log_dict["SrcDescription"] = getattr(request.headers, "USER_AGENT", None)
-        log_dict["SrcDvcId"] = None
-        log_dict["SrcDvcScopeId"] = None
-        log_dict["SrcDvcScope"] = None
-        log_dict["SrcDvcIdType"] = None
-        log_dict["SrcDeviceType"] = None
-        log_dict["SrcSubscriptionId"] = None
-        log_dict["SrcGeoCountry"] = None
-        log_dict["SrcGeoCity"] = None
-        log_dict["SrcGeoLatitude"] = None
-        log_dict["SrcGeoLongitude"] = None
+        log_dict["HttpUserAgent"] = getattr(request.headers, "USER_AGENT", None)
 
         # Todo: Zipkin/Jeager headers are specific to cloudfoundry/gov uk paas. We might want to use the aws trace headers: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
 
@@ -162,7 +137,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         username = None
         if user:
             user_id = getattr(user, "id", None)
-            if getattr(settings, "DLFE_LOG_SENSITIVE_USER_DATA", False):
+            if getattr(settings, "DLFA_LOG_SENSITIVE_USER_DATA", False):
                 username = getattr(user, "username", None)
                 if not username:
                     username = getattr(user, "email", None)

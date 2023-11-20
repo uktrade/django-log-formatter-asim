@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from io import StringIO
 
 import pytest
@@ -31,7 +32,10 @@ class User:
 
 
 class TestASIMFormatter:
-    # Note that we are explicitly expecting None for properties we are unable to supply
+    @pytest.fixture(scope="function", autouse=True)
+    def before_each(self):
+        os.environ["DJANGO_SETTINGS_MODULE"] = "settings.Test"
+        settings.DLFA_APP_NAME = "TestApplication"
 
     @freeze_time("2023-10-17 07:15:30")
     def test_system_formatter_logs_correct_fields(self):
@@ -88,26 +92,14 @@ class TestASIMFormatter:
             logger_name=logger_name,
             output=output,
         )
-        assert output["Src"] is None
+        # Source fields...
         assert output["SrcIpAddr"] == overrides["remote_address"]
         assert output["IpAddr"] == overrides["remote_address"]
         assert output["SrcPortNumber"] == overrides["server_port"]
-        assert output["SrcHostname"] is None
-        assert output["SrcHostname"] is None
-        assert output["SrcDomain"] is None
-        assert output["SrcDomainType"] is None
-        assert output["SrcFQDN"] is None
-        assert output["SrcDescription"] == "some user agent"
-        assert output["SrcDvcId"] is None
-        assert output["SrcDvcScopeId"] is None
-        assert output["SrcDvcScope"] is None
-        assert output["SrcDvcIdType"] is None
-        assert output["SrcDeviceType"] is None
-        assert output["SrcSubscriptionId"] is None
-        assert output["SrcGeoCountry"] is None
-        assert output["SrcGeoCity"] is None
-        assert output["SrcGeoLatitude"] is None
-        assert output["SrcGeoLongitude"] is None
+
+        # Acting Application fields...
+        assert output["ActingAppType"] == "Django"
+        assert output["HttpUserAgent"] == "some user agent"
 
     @pytest.mark.parametrize(
         "log_sensitive_user_data",
@@ -120,7 +112,7 @@ class TestASIMFormatter:
         self, log_sensitive_user_data
     ):
         if log_sensitive_user_data != "UNSET":
-            settings.DLFE_LOG_SENSITIVE_USER_DATA = log_sensitive_user_data
+            settings.DLFA_LOG_SENSITIVE_USER_DATA = log_sensitive_user_data
         logger, log_buffer = self._create_logger("django.request")
         overrides = {
             "user": self._create_user(),
@@ -136,7 +128,7 @@ class TestASIMFormatter:
         assert output["SrcUsername"] == "REDACTED"
 
     def test_logs_username_when_log_sensitive_user_data_is_on(self):
-        settings.DLFE_LOG_SENSITIVE_USER_DATA = True
+        settings.DLFA_LOG_SENSITIVE_USER_DATA = True
         logger, log_buffer = self._create_logger("django.request")
         overrides = {
             "user": self._create_user(),
@@ -151,7 +143,7 @@ class TestASIMFormatter:
         assert output["SrcUsername"] == "johntest"
 
     def test_logs_email_as_username_when_username_is_not_set(self):
-        settings.DLFE_LOG_SENSITIVE_USER_DATA = True
+        settings.DLFA_LOG_SENSITIVE_USER_DATA = True
         logger, log_buffer = self._create_logger("django.request")
         overrides = {
             "user": self._create_user(),
@@ -166,22 +158,26 @@ class TestASIMFormatter:
         output = self._get_json_log_entry(log_buffer)
         assert output["SrcUsername"] == "john@test.com"
 
-    # @override_settings(DLFE_APP_NAME="TestApp")
-    # def test_app_name_log_value(self):
-    #     output = self._create_request_log()
-    #
-    #     assert output["event"]["labels"]["application"] == "TestApp"
+    def _assert_base_fields(self, expected_log_time, logger_name, output):
+        # Event fields...
+        assert output["EventMessage"] == "Test"
+        assert output["EventCount"] == 1
+        assert output["EventStartTime"] == expected_log_time
+        assert output["EventEndTime"] == expected_log_time
+        assert output["EventType"] == "ProcessCreated"
+        assert output["EventSeverity"] == "Informational"
+        assert output["EventOriginalSeverity"] == "DEBUG"
+        assert output["EventSchemaVersion"] == "0.1.4"
+        assert output["EventSchema"] == "ProcessEvent"
 
-    # def test_env_unset_log_value(self):
-    #     output = self._create_request_log()
-    #
-    #     assert output["event"]["labels"]["env"] == "Unknown"
+        # ...
+        assert output["ActiveAppName"] == "TestApplication"
+        assert output["ActingAppType"] == "Django"
 
-    # @patch.dict(os.environ, {"DJANGO_SETTINGS_MODULE": "settings.Test"})
-    # def test_env_log_value(self):
-    #     output = self._create_request_log()
-    #
-    #     assert output["event"]["labels"]["env"] == "settings.Test"
+        # Additional fields...
+        # We are not checking the whole object here as it would be brittle,
+        # and we can trust Python to get it right
+        assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
 
     def _create_logger(self, logger_name):
         log_buffer = StringIO()
@@ -224,7 +220,7 @@ class TestASIMFormatter:
             username="johntest",
         )
 
-    def _create_request_log(self, logger, overrides):
+    def _create_request_log(self, logger, overrides={}):
         request = self._create_request(overrides=overrides)
         logger.debug(
             msg="Test",
@@ -236,42 +232,3 @@ class TestASIMFormatter:
     def _get_json_log_entry(self, log_buffer):
         json_output = log_buffer.getvalue()
         return json.loads(json_output)
-
-    def _assert_base_fields(self, expected_log_time, logger_name, output):
-        # Event fields...
-        assert output["EventMessage"] == "Test"
-        assert output["EventCount"] == 1
-        assert output["EventStartTime"] == expected_log_time
-        assert output["EventEndTime"] == expected_log_time
-        assert output["EventType"] == "ProcessCreated"
-        assert output["EventSubType"] is None
-        # We don't have anything for EventResult, but it is mandatory and one of
-        # Success, Partial, Failure, NA (Not Applicable).
-        assert output["EventResult"] == "NA"
-        assert output["EventResultDetails"] is None
-        assert output["EventUid"] is None
-        assert output["EventOriginalUid"] is None
-        assert output["EventOriginalType"] is None
-        assert output["EventOriginalSubType"] is None
-        assert output["EventOriginalResultDetails"] is None
-        assert output["EventSeverity"] == "Informational"
-        assert output["EventOriginalSeverity"] == "DEBUG"
-        # EventProduct and EventVendor are mandatory, but we don't have anything tha matches the
-        # allowed values from
-        # https://learn.microsoft.com/en-us/azure/sentinel/normalization-common-fields#vendors-and-products
-        # so we will use "Django" for both.
-        assert output["EventProduct"] == "Django"
-        assert output["EventProductVersion"] is None
-        assert output["EventVendor"] == "Django"
-        assert output["EventSchemaVersion"] == "0.1.4"
-        assert output["EventSchema"] == "ProcessEvent"
-        assert output["EventReportUrl"] is None
-        assert output["EventOwner"] is None
-        # Additional fields...
-        # We are not checking the whole object here as it would be brittle,
-        # and we can trust Python to get it right
-        assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
-        if logger_name == "django.request":
-            assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
-        assert output["ASimMatchingIpAddr"] is None
-        assert output["ASimMatchingHostname"] is None

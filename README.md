@@ -49,11 +49,11 @@ This package is compatible with [Django User Agents](https://pypi.org/project/dj
 
 ## Settings
 
-`DLFE_APP_NAME` - used to define the application name that should be logged.
+`DLFA_APP_NAME` - used to define the application name that should be logged.
 
-`DLFE_LOG_SENSITIVE_USER_DATA` - the formatter checks this setting to see if user information should be logged. If this is not set to true, only the user's id is logged.
+`DLFA_LOG_SENSITIVE_USER_DATA` - the formatter checks this setting to see if user information should be logged. If this is not set to true, only the user's id is logged.
 
-`DLFE_ZIPKIN_HEADERS` - used for defining custom zipkin headers, the defaults is :code:`("X-B3-TraceId" "X-B3-SpanId")`
+`DLFA_ZIPKIN_HEADERS` - used for defining custom zipkin headers, the defaults is :code:`("X-B3-TraceId" "X-B3-SpanId")`
 
 The Django configuration file logged is determined by running:
 
