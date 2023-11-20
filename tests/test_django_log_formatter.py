@@ -32,17 +32,12 @@ class User:
 
 
 class TestASIMFormatter:
-    @pytest.fixture(scope="function", autouse=True)
-    def before_each(self):
-        os.environ["DJANGO_SETTINGS_MODULE"] = "settings.Test"
-        settings.DLFA_APP_NAME = "TestApplication"
-
     @freeze_time("2023-10-17 07:15:30")
     def test_system_formatter_logs_correct_fields(self):
         logger_name = "django"
         logger, log_buffer = self._create_logger(logger_name)
 
-        logger.debug("Test")
+        logger.debug("Test log message")
 
         output = self._get_json_log_entry(log_buffer)
         self._assert_base_fields(
@@ -78,7 +73,7 @@ class TestASIMFormatter:
         overrides = {
             "remote_address": "10.9.8.7",
             "server_port": "567",
-            "user_agent": "some user agent",
+            "user_agent": "Test user agent",
         }
 
         self._create_request_log(
@@ -99,7 +94,7 @@ class TestASIMFormatter:
 
         # Acting Application fields...
         assert output["ActingAppType"] == "Django"
-        assert output["HttpUserAgent"] == "some user agent"
+        assert output["HttpUserAgent"] == "Test user agent"
 
     @pytest.mark.parametrize(
         "log_sensitive_user_data",
@@ -124,7 +119,7 @@ class TestASIMFormatter:
         )
 
         output = self._get_json_log_entry(log_buffer)
-        assert output["SrcUserId"] == "a1b2c3"
+        assert output["SrcUserId"] == "test_user_id"
         assert output["SrcUsername"] == "REDACTED"
 
     def test_logs_username_when_log_sensitive_user_data_is_on(self):
@@ -140,7 +135,7 @@ class TestASIMFormatter:
         )
 
         output = self._get_json_log_entry(log_buffer)
-        assert output["SrcUsername"] == "johntest"
+        assert output["SrcUsername"] == "test_username"
 
     def test_logs_email_as_username_when_username_is_not_set(self):
         settings.DLFA_LOG_SENSITIVE_USER_DATA = True
@@ -156,11 +151,11 @@ class TestASIMFormatter:
         )
 
         output = self._get_json_log_entry(log_buffer)
-        assert output["SrcUsername"] == "john@test.com"
+        assert output["SrcUsername"] == "test_email@test.com"
 
     def _assert_base_fields(self, expected_log_time, logger_name, output):
         # Event fields...
-        assert output["EventMessage"] == "Test"
+        assert output["EventMessage"] == "Test log message"
         assert output["EventCount"] == 1
         assert output["EventStartTime"] == expected_log_time
         assert output["EventEndTime"] == expected_log_time
@@ -170,14 +165,13 @@ class TestASIMFormatter:
         assert output["EventSchemaVersion"] == "0.1.4"
         assert output["EventSchema"] == "ProcessEvent"
 
-        # ...
-        assert output["ActiveAppName"] == "TestApplication"
+        # Acting Application fields...
         assert output["ActingAppType"] == "Django"
 
         # Additional fields...
         # We are not checking the whole object here as it would be brittle,
         # and we can trust Python to get it right
-        assert f'"name": "{logger_name}", "msg": "Test",' in output["AdditionalFields"]
+        assert f'"name": "{logger_name}", "msg": "Test log message",' in output["AdditionalFields"]
 
     def _create_logger(self, logger_name):
         log_buffer = StringIO()
@@ -213,17 +207,17 @@ class TestASIMFormatter:
 
     def _create_user(self):
         return User(
-            email="john@test.com",
-            user_id="a1b2c3",
-            first_name="John",
-            last_name="Test",
-            username="johntest",
+            email="test_email@test.com",
+            user_id="test_user_id",
+            first_name="Test first name",
+            last_name="Test last name",
+            username="test_username",
         )
 
     def _create_request_log(self, logger, overrides={}):
         request = self._create_request(overrides=overrides)
         logger.debug(
-            msg="Test",
+            msg="Test log message",
             extra={
                 "request": request,
             },

@@ -27,8 +27,6 @@ class ASIMFormatterBase:
             "EventOriginalSeverity": record.levelname,
             "EventSchema": "ProcessEvent",
             "EventSchemaVersion": "0.1.4",
-            # Acting Application fields...
-            "ActiveAppName": getattr(settings, "DLFA_APP_NAME", None),
             "ActingAppType": "Django",
             # Other fields...
             "AdditionalFields": json.dumps(record, default=lambda o: vars(o)),
@@ -106,31 +104,6 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         #     request.META.HTTP_USER_AGENT?
         # Probably need tests for all three
         log_dict["HttpUserAgent"] = getattr(request.headers, "USER_AGENT", None)
-
-        # Todo: Zipkin/Jeager headers are specific to cloudfoundry/gov uk paas. We might want to use the aws trace headers: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
-
-        # parsed_url = urlparse(self.record.request.build_absolute_uri())
-        #
-        # ip = self._get_ip_address(self.record.request)
-        #
-        # request_bytes = len(self.record.request.body)
-        #
-        # logger_event.url(
-        #     path=parsed_url.path,
-        #     domain=parsed_url.hostname,
-        # ).source(
-        #     ip=self._get_ip_address(self.record.request)
-        # ).http_response(status_code=getattr(self.record, "status_code", None)).client(
-        #     address=ip,
-        #     bytes=request_bytes,
-        #     domain=parsed_url.hostname,
-        #     ip=ip,
-        #     port=parsed_url.port,
-        # ).http_request(
-        #     body_bytes=request_bytes,
-        #     body_content=self.record.request.body,
-        #     method=self.record.request.method,
-        # )
 
         user = getattr(request, "user", None)
         user_id = None
