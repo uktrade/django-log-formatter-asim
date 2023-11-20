@@ -114,8 +114,13 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         log_dict["SrcDomain"] = None
         log_dict["SrcDomainType"] = None
         log_dict["SrcFQDN"] = None
-        # Todo: Unsure if correct property for the user agent...
-        log_dict["SrcDescription"] = request.headers.USER_AGENT
+        # Todo: Unsure of correct property for the user agent...
+        # Might come from the following in order of priority
+        #     request.user_agent
+        #     request.headers.user_agent
+        #     request.META.HTTP_USER_AGENT?
+        # Probably need tests for all three
+        log_dict["SrcDescription"] = getattr(request.headers, "USER_AGENT", None)
         log_dict["SrcDvcId"] = None
         log_dict["SrcDvcScopeId"] = None
         log_dict["SrcDvcScope"] = None
@@ -127,95 +132,44 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         log_dict["SrcGeoLatitude"] = None
         log_dict["SrcGeoLongitude"] = None
 
-        return log_dict
+        # Todo: Zipkin/Jeager headers are specific to cloudfoundry/gov uk paas. We might want to use the aws trace headers: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
 
-    def get_event(self):
-        zipkin_headers = getattr(
-            settings,
-            "DLFE_ZIPKIN_HEADERS",
-            ("X-B3-TraceId", "X-B3-SpanId"),
-        )
+        # parsed_url = urlparse(self.record.request.build_absolute_uri())
+        #
+        # ip = self._get_ip_address(self.record.request)
+        #
+        # request_bytes = len(self.record.request.body)
+        #
+        # logger_event.url(
+        #     path=parsed_url.path,
+        #     domain=parsed_url.hostname,
+        # ).source(
+        #     ip=self._get_ip_address(self.record.request)
+        # ).http_response(status_code=getattr(self.record, "status_code", None)).client(
+        #     address=ip,
+        #     bytes=request_bytes,
+        #     domain=parsed_url.hostname,
+        #     ip=ip,
+        #     port=parsed_url.port,
+        # ).http_request(
+        #     body_bytes=request_bytes,
+        #     body_content=self.record.request.body,
+        #     method=self.record.request.method,
+        # )
 
-        extra_labels = {}
-
-        for zipkin_header in zipkin_headers:
-            if getattr(
-                self.record.request.headers,
-                zipkin_header,
-                None,
-            ):
-                extra_labels[zipkin_header] = self.record.request.headers[
-                    zipkin_header
-                ]  # noqa E501
-
-        logger_event = self._get_event_base(
-            extra_labels=extra_labels,
-        )
-
-        parsed_url = urlparse(self.record.request.build_absolute_uri())
-
-        ip = self._get_ip_address(self.record.request)
-
-        request_bytes = len(self.record.request.body)
-
-        logger_event.url(
-            path=parsed_url.path,
-            domain=parsed_url.hostname,
-        ).source(
-            ip=self._get_ip_address(self.record.request)
-        ).http_response(status_code=getattr(self.record, "status_code", None)).client(
-            address=ip,
-            bytes=request_bytes,
-            domain=parsed_url.hostname,
-            ip=ip,
-            port=parsed_url.port,
-        ).http_request(
-            body_bytes=request_bytes,
-            body_content=self.record.request.body,
-            method=self.record.request.method,
-        )
-
-        user_agent_string = self._get_user_agent()
-
-        if not user_agent_string and "HTTP_USER_AGENT" in self.record.request.META:  # noqa E501
-            user_agent_string = self.record.request.META["HTTP_USER_AGENT"]
-
-        # Check for use of django-user_agents
-        if getattr(self.record.request, "user_agent", None):
-            logger_event.user_agent(
-                device={
-                    "name": self.record.request.user_agent.device.family,
-                },
-                name=self.record.request.user_agent.browser.family,
-                original=user_agent_string,
-                version=self.record.request.user_agent.browser.version_string,
-            )
-        elif user_agent_string:
-            logger_event.user_agent(
-                original=user_agent_string,
-            )
-
-        if getattr(self.record.request, "user", None):
+        user = getattr(request, "user", None)
+        user_id = None
+        username = None
+        if user:
+            user_id = getattr(user, "id", None)
             if getattr(settings, "DLFE_LOG_SENSITIVE_USER_DATA", False):
-                # Defensively check for full name due to possibility of custom user app
-                try:
-                    full_name = self.record.request.user.get_full_name()
-                except AttributeError:
-                    full_name = None
-
-                # Check user attrs to account for custom user apps
-                logger_event.user(
-                    email=getattr(self.record.request.user, "email", None),
-                    full_name=full_name,
-                    name=getattr(self.record.request.user, "username", None),
-                    id=getattr(self.record.request.user, "id", None),
-                )
+                username = getattr(user, "username", getattr(user, "email", None))
             else:
-                logger_event.user(
-                    id=getattr(self.record.request.user, "id", None),
-                )
+                username = "REDACTED"
+        log_dict["SrcUserId"] = user_id
+        log_dict["SrcUsername"] = username
 
-        return logger_event
+        return log_dict
 
     def _get_user_agent(self):
         return getattr(

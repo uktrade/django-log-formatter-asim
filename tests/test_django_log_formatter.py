@@ -108,20 +108,36 @@ class TestASIMFormatter:
         assert output["SrcGeoLatitude"] is None
         assert output["SrcGeoLongitude"] is None
 
-    # def test_log_sensitive_user_data_default(self):
-    #     output = self._create_request_log(add_user=True)
-    #
-    #     assert "id" in output["user"]
-    #     assert "email" not in output["user"]
+    def test_log_sensitive_user_data_default(self):
+        logger, log_buffer = self._create_logger("django.request")
+        overrides = {
+            "user": self._create_user(),
+        }
 
-    # @override_settings(DLFE_LOG_SENSITIVE_USER_DATA=True)
-    # def test_log_sensitive_user_data_on(self):
-    #     output = self._create_request_log(add_user=True)
-    #
-    #     assert output["user"]["id"] == "1"
-    #     assert output["user"]["email"] == "test@test.com"
-    #     assert output["user"]["full_name"] == "John Test"
-    #     assert output["user"]["name"] == "johntest"
+        self._create_request_log(
+            logger,
+            overrides,
+        )
+
+        output = self._get_json_log_entry(log_buffer)
+        assert output["SrcUserId"] is not None
+        assert output["SrcUsername"] == "REDACTED"
+
+    @override_settings(DLFE_LOG_SENSITIVE_USER_DATA=True)
+    def test_log_sensitive_user_data_on(self):
+        logger, log_buffer = self._create_logger("django.request")
+        overrides = {
+            "user": self._create_user(),
+        }
+
+        self._create_request_log(
+            logger,
+            overrides,
+        )
+
+        output = self._get_json_log_entry(log_buffer)
+        assert output["SrcUserId"] is not None
+        assert output["SrcUsername"] == "johntest"
 
     # @override_settings(DLFE_APP_NAME="TestApp")
     # def test_app_name_log_value(self):
@@ -167,17 +183,19 @@ class TestASIMFormatter:
         if overrides.get("user_agent"):
             request.headers.__setattr__("USER_AGENT", overrides.get("user_agent"))
 
-        if add_user:
-            user = User(
-                email="test@test.com",
-                user_id=1,
-                first_name="John",
-                last_name="Test",
-                username="johntest",
-            )
-            setattr(request, "user", user)
+        if overrides.get("user"):
+            request.__setattr__("user", overrides.get("user"))
 
         return request
+
+    def _create_user(self):
+        return User(
+            email="test@test.com",
+            user_id=1,
+            first_name="John",
+            last_name="Test",
+            username="johntest",
+        )
 
     def _create_request_log(self, logger, overrides):
         request = self._create_request(overrides=overrides)
