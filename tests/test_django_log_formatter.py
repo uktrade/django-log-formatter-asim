@@ -57,9 +57,9 @@ class TestASIMFormatter:
     )
     def test_formatter_logs_correct_severity(self, log_method_name, expected_severity):
         logger, log_buffer = self._create_logger("django")
-        log_method = getattr(logger, log_method_name)
+        log_dot_level = getattr(logger, log_method_name)
 
-        log_method("Does not matter")
+        log_dot_level("Does not matter")
 
         output = self._get_json_log_entry(log_buffer)
         assert output["EventSeverity"] == expected_severity
@@ -69,11 +69,7 @@ class TestASIMFormatter:
     def test_request_formatter_logs_correct_fields(self):
         logger_name = "django.request"
         logger, log_buffer = self._create_logger(logger_name)
-        overrides = {
-            "remote_address": "10.9.8.7",
-            "server_port": "567",
-            "user_agent": "Test user agent",
-        }
+        overrides = {"remote_address": "10.9.8.7", "server_port": "567"}
 
         self._create_request_log(logger, overrides)
 
@@ -90,15 +86,14 @@ class TestASIMFormatter:
 
         # Acting Application fields...
         assert output["ActingAppType"] == "Django"
-        assert output["HttpUserAgent"] == "Test user agent"
 
     @pytest.mark.parametrize(
         "user_agent_fields_to_unset, expected_user_agent",
         [
-            # ([], "Test request.user_agent"),
-            # (["user_agent"], "Test request.headers.user_agent"),
+            ([], "Test request.user_agent"),
+            (["user_agent"], "Test request.headers.user_agent"),
             (["user_agent", "headers.user_agent"], "Test request.META.HTTP_USER_AGENT"),
-            # (["user_agent", "headers.user_agent", "META.HTTP_USER_AGENT"], None),
+            (["user_agent", "headers.user_agent", "META.HTTP_USER_AGENT"], None),
         ],
     )
     def test_request_formatter_sets_http_user_agent_with_fallbacks(
@@ -184,8 +179,9 @@ class TestASIMFormatter:
         assert output["ActingAppType"] == "Django"
 
         # Additional fields...
-        # We are not checking the whole object here as it would be brittle,
-        # and we can trust Python to get it right
+        # We are not checking the whole AdditionalFields object here as it would be brittle,
+        # and we can trust Python to get it right,
+        # so we just test that the start exists and looks realistic...
         assert f'"name": "{logger_name}", "msg": "Test log message",' in output["AdditionalFields"]
 
     def _create_logger(self, logger_name):
