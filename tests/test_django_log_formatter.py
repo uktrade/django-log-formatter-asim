@@ -1,13 +1,11 @@
 import json
 import logging
-import os
 from io import StringIO
 
 import pytest
-from freezegun import freeze_time
 from django.conf import settings
 from django.test import RequestFactory
-from django.test import override_settings
+from freezegun import freeze_time
 
 from django_log_formatter_asim import ASIMFormatter
 
@@ -108,7 +106,18 @@ class TestASIMFormatter:
         assert output["SrcGeoLatitude"] is None
         assert output["SrcGeoLongitude"] is None
 
-    def test_log_sensitive_user_data_default(self):
+    @pytest.mark.parametrize(
+        "log_sensitive_user_data",
+        [
+            ("UNSET"),
+            (False),
+        ],
+    )
+    def test_does_not_log_username_when_log_sensitive_user_data_is_off(
+        self, log_sensitive_user_data
+    ):
+        if log_sensitive_user_data != "UNSET":
+            settings.DLFE_LOG_SENSITIVE_USER_DATA = log_sensitive_user_data
         logger, log_buffer = self._create_logger("django.request")
         overrides = {
             "user": self._create_user(),
@@ -123,8 +132,8 @@ class TestASIMFormatter:
         assert output["SrcUserId"] is not None
         assert output["SrcUsername"] == "REDACTED"
 
-    @override_settings(DLFE_LOG_SENSITIVE_USER_DATA=True)
-    def test_log_sensitive_user_data_on(self):
+    def test_logs_username_when_log_sensitive_user_data_is_on(self):
+        settings.DLFE_LOG_SENSITIVE_USER_DATA = True
         logger, log_buffer = self._create_logger("django.request")
         overrides = {
             "user": self._create_user(),
@@ -190,7 +199,7 @@ class TestASIMFormatter:
 
     def _create_user(self):
         return User(
-            email="test@test.com",
+            email="john@test.com",
             user_id=1,
             first_name="John",
             last_name="Test",
