@@ -70,22 +70,15 @@ class TestASIMFormatter:
     def test_request_formatter_logs_correct_fields(self):
         logger_name = "django.request"
         logger, log_buffer = self._create_logger(logger_name)
-        expected_remote_address = "10.9.8.7"
-        expected_server_port = "567"
-        expected_user_agent = "some user agent"
-        request = self._create_request(
-            overrides={
-                "remote_address": expected_remote_address,
-                "server_port": expected_server_port,
-                "user_agent": expected_user_agent,
-            }
-        )
+        overrides = {
+            "remote_address": "10.9.8.7",
+            "server_port": "567",
+            "user_agent": "some user agent",
+        }
 
-        logger.debug(
-            msg="Test",
-            extra={
-                "request": request,
-            },
+        self._create_request_log(
+            logger,
+            overrides,
         )
 
         output = self._get_json_log_entry(log_buffer)
@@ -95,15 +88,15 @@ class TestASIMFormatter:
             output=output,
         )
         assert output["Src"] is None
-        assert output["SrcIpAddr"] == expected_remote_address
-        assert output["IpAddr"] == expected_remote_address
-        assert output["SrcPortNumber"] == expected_server_port
+        assert output["SrcIpAddr"] == overrides["remote_address"]
+        assert output["IpAddr"] == overrides["remote_address"]
+        assert output["SrcPortNumber"] == overrides["server_port"]
         assert output["SrcHostname"] is None
         assert output["SrcHostname"] is None
         assert output["SrcDomain"] is None
         assert output["SrcDomainType"] is None
         assert output["SrcFQDN"] is None
-        assert output["SrcDescription"] == expected_user_agent
+        assert output["SrcDescription"] == "some user agent"
         assert output["SrcDvcId"] is None
         assert output["SrcDvcScopeId"] is None
         assert output["SrcDvcScope"] is None
@@ -185,6 +178,15 @@ class TestASIMFormatter:
             setattr(request, "user", user)
 
         return request
+
+    def _create_request_log(self, logger, overrides):
+        request = self._create_request(overrides=overrides)
+        logger.debug(
+            msg="Test",
+            extra={
+                "request": request,
+            },
+        )
 
     def _get_json_log_entry(self, log_buffer):
         json_output = log_buffer.getvalue()
