@@ -1,8 +1,5 @@
 import json
 import logging
-import os
-import platform
-from urllib.parse import urlparse
 from datetime import datetime
 
 from django.conf import settings
@@ -94,16 +91,14 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         log_dict["SrcIpAddr"] = request.environ.get("REMOTE_ADDR", None)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
         log_dict["SrcPortNumber"] = request.environ.get("SERVER_PORT", None)
-        log_dict["SrcDescription"] = getattr(request.headers, "USER_AGENT", None)
 
         # Acting Application fields...
-        # Todo: Unsure of correct property for the user agent...
-        # Might come from the following in order of priority
-        #     request.user_agent
-        #     request.headers.user_agent
-        #     request.META.HTTP_USER_AGENT?
-        # Probably need tests for all three
-        log_dict["HttpUserAgent"] = getattr(request.headers, "USER_AGENT", None)
+        http_user_agent = getattr(request, "user_agent", None)
+        if not http_user_agent:
+            http_user_agent = getattr(request.headers, "user_agent", None)
+        if not http_user_agent:
+            http_user_agent = request.META.get("HTTP_USER_AGENT", None)
+        log_dict["HttpUserAgent"] = http_user_agent
 
         user = getattr(request, "user", None)
         user_id = None

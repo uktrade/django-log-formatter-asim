@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from io import StringIO
 
 import pytest
@@ -76,10 +75,7 @@ class TestASIMFormatter:
             "user_agent": "Test user agent",
         }
 
-        self._create_request_log(
-            logger,
-            overrides,
-        )
+        self._create_request_log(logger, overrides)
 
         output = self._get_json_log_entry(log_buffer)
         self._assert_base_fields(
@@ -95,6 +91,34 @@ class TestASIMFormatter:
         # Acting Application fields...
         assert output["ActingAppType"] == "Django"
         assert output["HttpUserAgent"] == "Test user agent"
+
+    @pytest.mark.parametrize(
+        "user_agent_fields_to_unset, expected_user_agent",
+        [
+            # ([], "Test request.user_agent"),
+            # (["user_agent"], "Test request.headers.user_agent"),
+            (["user_agent", "headers.user_agent"], "Test request.META.HTTP_USER_AGENT"),
+            # (["user_agent", "headers.user_agent", "META.HTTP_USER_AGENT"], None),
+        ],
+    )
+    def test_request_formatter_sets_http_user_agent_with_fallbacks(
+        self,
+        user_agent_fields_to_unset,
+        expected_user_agent,
+    ):
+        logger, log_buffer = self._create_logger("django.request")
+        overrides = {
+            "user_agent": "Test request.user_agent",
+            "headers.user_agent": "Test request.headers.user_agent",
+            "META.HTTP_USER_AGENT": "Test request.META.HTTP_USER_AGENT",
+        }
+        for field_to_unset in user_agent_fields_to_unset:
+            del overrides[field_to_unset]
+
+        self._create_request_log(logger, overrides)
+
+        output = self._get_json_log_entry(log_buffer)
+        assert output["HttpUserAgent"] == expected_user_agent
 
     @pytest.mark.parametrize(
         "log_sensitive_user_data",
@@ -113,10 +137,7 @@ class TestASIMFormatter:
             "user": self._create_user(),
         }
 
-        self._create_request_log(
-            logger,
-            overrides,
-        )
+        self._create_request_log(logger, overrides)
 
         output = self._get_json_log_entry(log_buffer)
         assert output["SrcUserId"] == "test_user_id"
@@ -129,10 +150,7 @@ class TestASIMFormatter:
             "user": self._create_user(),
         }
 
-        self._create_request_log(
-            logger,
-            overrides,
-        )
+        self._create_request_log(logger, overrides)
 
         output = self._get_json_log_entry(log_buffer)
         assert output["SrcUsername"] == "test_username"
@@ -145,10 +163,7 @@ class TestASIMFormatter:
         }
         overrides["user"].unset_username()
 
-        self._create_request_log(
-            logger,
-            overrides,
-        )
+        self._create_request_log(logger, overrides)
 
         output = self._get_json_log_entry(log_buffer)
         assert output["SrcUsername"] == "test_email@test.com"
@@ -185,7 +200,7 @@ class TestASIMFormatter:
 
         return logger, log_buffer
 
-    def _create_request(self, add_user=False, overrides=None):
+    def _create_request(self, overrides=None):
         if overrides is None:
             overrides = {}
         request = RequestFactory().get(path="/")
@@ -198,7 +213,13 @@ class TestASIMFormatter:
             request.environ["SERVER_PORT"] = overrides.get("server_port")
 
         if overrides.get("user_agent"):
-            request.headers.__setattr__("USER_AGENT", overrides.get("user_agent"))
+            request.__setattr__("user_agent", overrides.get("user_agent"))
+
+        if overrides.get("headers.user_agent"):
+            request.headers.__setattr__("user_agent", overrides.get("headers.user_agent"))
+
+        if overrides.get("META.HTTP_USER_AGENT"):
+            request.META["HTTP_USER_AGENT"] = overrides.get("META.HTTP_USER_AGENT")
 
         if overrides.get("user"):
             request.__setattr__("user", overrides.get("user"))
