@@ -40,41 +40,6 @@ class ASIMFormatterBase:
         }
         return map[log_level]
 
-    # def _get_event_base(self, extra_labels={}):
-    #     labels = {
-    #         "application": getattr(settings, "DLFA_APP_NAME", None),
-    #         "env": self._get_environment(),
-    #     }
-    #
-    #     logger = (
-    #         ASIMLogger()
-    #         .event(
-    #             category=self._get_event_category(),
-    #             action=self.record.name,
-    #             message=self.record.getMessage(),
-    #             labels={
-    #                 **labels,
-    #                 **extra_labels,
-    #             },
-    #         )
-    #         .host(
-    #             architecture=platform.machine(),
-    #         )
-    #     )
-    #
-    #     return logger
-
-    # def _get_event_category(self):
-    #     if self.record.name in ("django.request", "django.server"):
-    #         return CATEGORY_WEB
-    #     if self.record.name.startswith("django.db.backends"):
-    #         return CATEGORY_DATABASE
-    #
-    #     return CATEGORY_PROCESS
-
-    # def _get_environment(self):
-    #     return os.getenv("DJANGO_SETTINGS_MODULE") or "Unknown"
-
 
 class ASIMSystemFormatter(ASIMFormatterBase):
     def get_log_dict(self):
