@@ -9,6 +9,18 @@ class ASIMFormatterBase:
     def __init__(self, record):
         self.record = record
 
+        if not getattr(settings, "DLFA_LOG_SENSITIVE_USER_DATA", False):
+            self._replace_personally_identifiable_information()
+
+    def _replace_personally_identifiable_information(self):
+        if getattr(self.record, "request", None):
+            user = getattr(self.record.request, "user", None)
+            if user:
+                user.username = "{{USERNAME}}"
+                user.email = "{{EMAIL}}"
+                user.first_name = "{{FIRST_NAME}}"
+                user.last_name = "{{LAST_NAME}}"
+
     def _get_log_dict_base(self):
         record = self.record
         log_time = datetime.utcfromtimestamp(record.created).isoformat()
@@ -47,6 +59,9 @@ class ASIMSystemFormatter(ASIMFormatterBase):
 
 
 class ASIMRequestFormatter(ASIMFormatterBase):
+    def __init__(self, record):
+        super().__init__(record)
+
     def get_log_dict(self):
         log_dict = self._get_log_dict_base()
 
@@ -74,12 +89,10 @@ class ASIMRequestFormatter(ASIMFormatterBase):
             user_id = getattr(user, "id", None)
             if user.is_anonymous:
                 username = "AnonymousUser"
-            elif getattr(settings, "DLFA_LOG_SENSITIVE_USER_DATA", False):
+            else:
                 username = getattr(user, "username", None)
                 if not username:
                     username = getattr(user, "email", None)
-            else:
-                username = "REDACTED"
         return user_id, username
 
     def _get_user_agent(self):

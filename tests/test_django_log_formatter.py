@@ -9,6 +9,13 @@ from freezegun import freeze_time
 
 from django_log_formatter_asim import ASIMFormatter
 
+TEST_USER_ID = "test_user_id"
+TEST_USERNAME = "test_username"
+TEST_EMAIL = "test_email@test.com"
+TEST_LAST_NAME = "Test last name"
+TEST_FIRST_NAME = "Test first name"
+
+
 settings.configure(
     DEBUG=True,
     ALLOWED_HOSTS="*",
@@ -138,7 +145,7 @@ class TestASIMFormatter:
             (False),
         ],
     )
-    def test_does_not_log_username_when_log_sensitive_user_data_is_off(
+    def test_does_not_log_personally_identifiable_information_when_log_sensitive_user_data_is_off(
         self, log_sensitive_user_data
     ):
         if log_sensitive_user_data != "UNSET":
@@ -151,10 +158,18 @@ class TestASIMFormatter:
         self._create_request_log(logger, overrides)
 
         output = self._get_json_log_entry(log_buffer)
-        assert output["SrcUserId"] == "test_user_id"
-        assert output["SrcUsername"] == "REDACTED"
+        assert output["SrcUserId"] == TEST_USER_ID
+        assert output["SrcUsername"] == "{{USERNAME}}"
+        assert TEST_USERNAME not in output["AdditionalFields"]
+        assert "{{USERNAME}}" in output["AdditionalFields"]
+        assert TEST_EMAIL not in output["AdditionalFields"]
+        assert "{{EMAIL}}" in output["AdditionalFields"]
+        assert TEST_FIRST_NAME not in output["AdditionalFields"]
+        assert "{{FIRST_NAME}}" in output["AdditionalFields"]
+        assert TEST_LAST_NAME not in output["AdditionalFields"]
+        assert "{{LAST_NAME}}" in output["AdditionalFields"]
 
-    def test_logs_username_when_log_sensitive_user_data_is_on(self):
+    def test_logs_log_personally_identifiable_information_when_log_sensitive_user_data_is_on(self):
         settings.DLFA_LOG_SENSITIVE_USER_DATA = True
         logger, log_buffer = self._create_logger("django.request")
         overrides = {
@@ -164,7 +179,7 @@ class TestASIMFormatter:
         self._create_request_log(logger, overrides)
 
         output = self._get_json_log_entry(log_buffer)
-        assert output["SrcUsername"] == "test_username"
+        assert output["SrcUsername"] == TEST_USERNAME
 
     def test_logs_email_as_username_when_username_is_not_set(self):
         settings.DLFA_LOG_SENSITIVE_USER_DATA = True
@@ -177,7 +192,7 @@ class TestASIMFormatter:
         self._create_request_log(logger, overrides)
 
         output = self._get_json_log_entry(log_buffer)
-        assert output["SrcUsername"] == "test_email@test.com"
+        assert output["SrcUsername"] == TEST_EMAIL
 
     def test_logs_anonymous_user_when_no_user_logged_in(self):
         logger, log_buffer = self._create_logger("django.request")
@@ -252,11 +267,11 @@ class TestASIMFormatter:
 
     def _create_user(self):
         return User(
-            email="test_email@test.com",
-            user_id="test_user_id",
-            first_name="Test first name",
-            last_name="Test last name",
-            username="test_username",
+            email=TEST_EMAIL,
+            user_id=TEST_USER_ID,
+            first_name=TEST_FIRST_NAME,
+            last_name=TEST_LAST_NAME,
+            username=TEST_USERNAME,
         )
 
     def _create_request_log(self, logger, overrides={}):
