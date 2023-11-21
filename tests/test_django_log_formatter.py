@@ -15,6 +15,7 @@ settings.configure(
 )
 
 
+# Basic mock implementation of django.contrib.auth.models.User
 class User:
     def __init__(self, email, user_id, first_name, last_name, username):
         self.email = email
@@ -30,7 +31,17 @@ class User:
         return f"{self.first_name} {self.last_name}"
 
 
+# Basic mock implementation of django.contrib.auth.models.AnonymousUser
+class AnonymousUser:
+    id = None
+    username = ""
+
+
 class TestASIMFormatter:
+    @pytest.fixture(scope="function", autouse=True)
+    def before_each(self):
+        settings.SECRET_KEY = "does-not-matter"
+
     @freeze_time("2023-10-17 07:15:30")
     def test_system_formatter_logs_correct_fields(self):
         logger_name = "django"
@@ -162,6 +173,18 @@ class TestASIMFormatter:
 
         output = self._get_json_log_entry(log_buffer)
         assert output["SrcUsername"] == "test_email@test.com"
+
+    def test_logs_anonymous_user_when_no_user_logged_in(self):
+        logger, log_buffer = self._create_logger("django.request")
+        overrides = {
+            "user": AnonymousUser(),
+        }
+
+        self._create_request_log(logger, overrides)
+
+        output = self._get_json_log_entry(log_buffer)
+        assert output["SrcUserId"] is None
+        assert output["SrcUsername"] == "AnonymousUser"
 
     def _assert_base_fields(self, expected_log_time, logger_name, output):
         # Event fields...

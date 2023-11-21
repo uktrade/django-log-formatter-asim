@@ -70,7 +70,9 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         username = None
         if user:
             user_id = getattr(user, "id", None)
-            if getattr(settings, "DLFA_LOG_SENSITIVE_USER_DATA", False):
+            if user.__class__.__name__ == "AnonymousUser":
+                username = "AnonymousUser"
+            elif getattr(settings, "DLFA_LOG_SENSITIVE_USER_DATA", False):
                 username = getattr(user, "username", None)
                 if not username:
                     username = getattr(user, "email", None)
