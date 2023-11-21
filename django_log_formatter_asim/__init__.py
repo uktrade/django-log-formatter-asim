@@ -58,12 +58,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         log_dict["SrcPortNumber"] = request.environ.get("SERVER_PORT", None)
 
         # Acting Application fields...
-        http_user_agent = getattr(request, "user_agent", None)
-        if not http_user_agent:
-            http_user_agent = getattr(request.headers, "user_agent", None)
-        if not http_user_agent:
-            http_user_agent = request.META.get("HTTP_USER_AGENT", None)
-        log_dict["HttpUserAgent"] = http_user_agent
+        log_dict["HttpUserAgent"] = self._get_user_agent()
 
         user = getattr(request, "user", None)
         user_id = None
@@ -84,11 +79,13 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         return log_dict
 
     def _get_user_agent(self):
-        return getattr(
-            self.record.request.headers,
-            "user_agent",
-            None,
-        )
+        request = self.record.request
+        http_user_agent = getattr(request, "user_agent", None)
+        if not http_user_agent:
+            http_user_agent = getattr(request.headers, "user_agent", None)
+        if not http_user_agent:
+            http_user_agent = request.META.get("HTTP_USER_AGENT", None)
+        return http_user_agent
 
     def _get_ip_address(self, request):
         # Import here as ipware uses settings
