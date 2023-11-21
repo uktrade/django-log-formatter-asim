@@ -60,9 +60,16 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         # Acting Application fields...
         log_dict["HttpUserAgent"] = self._get_user_agent()
 
-        user = getattr(request, "user", None)
+        user_id, username = self._get_user_details(request)
+        log_dict["SrcUserId"] = user_id
+        log_dict["SrcUsername"] = username
+
+        return log_dict
+
+    def _get_user_details(self, request):
         user_id = None
         username = None
+        user = getattr(request, "user", None)
         if user:
             user_id = getattr(user, "id", None)
             if user.__class__.__name__ == "AnonymousUser":
@@ -73,10 +80,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
                     username = getattr(user, "email", None)
             else:
                 username = "REDACTED"
-        log_dict["SrcUserId"] = user_id
-        log_dict["SrcUsername"] = username
-
-        return log_dict
+        return user_id, username
 
     def _get_user_agent(self):
         request = self.record.request
