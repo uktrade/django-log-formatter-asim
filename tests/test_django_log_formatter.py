@@ -27,14 +27,19 @@ class User:
     def unset_username(self):
         self.username = None
 
-    def get_full_name(self):
-        return f"{self.first_name} {self.last_name}"
+    @property
+    def is_anonymous(self):
+        return False
 
 
 # Basic mock implementation of django.contrib.auth.models.AnonymousUser
 class AnonymousUser:
     id = None
     username = ""
+
+    @property
+    def is_anonymous(self):
+        return True
 
 
 class TestASIMFormatter:
