@@ -1,4 +1,55 @@
+import sys
+
+from django_log_formatter_asim import ASIMFormatter
+
 SECRET_KEY = "fake-key"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "asim_formatter": {
+            "()": ASIMFormatter,
+        },
+        "simple": {
+            "format": "{asctime} {levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "asim": {
+            "class": "logging.StreamHandler",
+            "formatter": "asim_formatter",
+        },
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "stream": sys.stdout,
+            "formatter": "simple",
+        },
+    },
+    "root": {
+        "handlers": ["stdout"],
+        "level": "DEBUG",
+    },
+    "loggers": {
+        "django": {
+            "handlers": [
+                "asim",
+                "stdout",
+            ],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": [
+                "asim",
+                "stdout",
+            ],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+    },
+}
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -47,7 +98,6 @@ TEMPLATES = [
         },
     },
 ]
-
 
 # MIDDLEWARE = [
 #     'django.contrib.sessions.middleware.SessionMiddleware',
