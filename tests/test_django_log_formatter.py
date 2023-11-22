@@ -20,10 +20,15 @@ class TestASIMFormatter:
     def caplog_asim_formatter(self, caplog):
         caplog.handler.setFormatter(ASIMFormatter())
 
+    @pytest.mark.parametrize(
+        "logger_name",
+        [
+            ("root"),
+            ("django"),
+        ],
+    )
     @freeze_time("2023-10-17 07:15:30")
-    def test_system_formatter_logs_correct_fields(self, caplog):
-        logger_name = "django"
-
+    def test_system_formatter_logs_correct_fields(self, logger_name, caplog):
         logging.getLogger(logger_name).debug("Test log message")
 
         output = self._get_json_log_entry(caplog)
