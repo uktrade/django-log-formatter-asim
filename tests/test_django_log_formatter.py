@@ -39,9 +39,8 @@ class TestASIMFormatter:
             ("debug", "Informational"),
             ("info", "Informational"),
             ("warning", "Low"),
-            # Todo: Loop back to why these two have an extra error...
-            # ("error", "Medium"),
-            # ("critical", "High"),
+            ("error", "Medium"),
+            ("critical", "High"),
         ],
     )
     def test_formatter_logs_correct_severity(self, log_method_name, expected_severity, caplog):
@@ -224,10 +223,4 @@ class TestASIMFormatter:
         )
 
     def _get_json_log_entry(self, caplog):
-        json_output = caplog.text
-        # Todo: just getting the first line here because of "the other log message"
-        json_output = json_output.partition(
-            "\n",
-        )[0]
-        json_temp = json.loads(json_output)
-        return json_temp
+        return json.loads(caplog.text)
