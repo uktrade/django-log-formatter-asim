@@ -16,6 +16,7 @@ packages = [
 django = "^4.2.7"
 django-ipware = "^5.0.2"
 python = ">=3.9,<4"
+munch = "^4.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.5.0"

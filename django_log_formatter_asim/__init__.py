@@ -38,9 +38,16 @@ class ASIMFormatterBase:
             "EventSchemaVersion": "0.1.4",
             "ActingAppType": "Django",
             # Other fields...
-            "AdditionalFields": json.dumps(record, default=lambda o: vars(o)),
+            # Todo: Enable this in config?
+            "AdditionalFields": json.dumps(record, default=self._to_dict),
         }
         return log_dict
+
+    def _to_dict(self, object):
+        try:
+            return vars(object)
+        except TypeError:
+            return str(object)
 
     def _get_event_severity(self, log_level):
         map = {
