@@ -30,7 +30,7 @@ class ASIMFormatterBase:
             "EventCount": 1,
             "EventStartTime": log_time,
             "EventEndTime": log_time,
-            "EventType": "ProcessCreated",
+            "EventType": record.name,
             "EventResult": "NA",
             "EventSeverity": self._get_event_severity(record.levelname),
             "EventOriginalSeverity": record.levelname,

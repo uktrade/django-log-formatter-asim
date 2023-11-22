@@ -168,7 +168,7 @@ class TestASIMFormatter:
         assert output["EventCount"] == 1
         assert output["EventStartTime"] == expected_log_time
         assert output["EventEndTime"] == expected_log_time
-        assert output["EventType"] == "ProcessCreated"
+        assert output["EventType"] == logger_name
         assert output["EventSeverity"] == "Informational"
         assert output["EventOriginalSeverity"] == "DEBUG"
         assert output["EventSchemaVersion"] == "0.1.4"
