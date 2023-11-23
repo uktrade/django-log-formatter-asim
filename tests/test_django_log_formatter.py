@@ -20,6 +20,11 @@ class TestASIMFormatter:
     def caplog_asim_formatter(self, caplog):
         caplog.handler.setFormatter(ASIMFormatter())
 
+    @pytest.fixture(autouse=True)
+    def reset_trace_headers_setting(self, caplog):
+        if getattr(settings, "DLFA_TRACE_HEADERS", False):
+            del settings.DLFA_TRACE_HEADERS
+
     @pytest.mark.parametrize(
         "logger_name",
         [
@@ -37,6 +42,9 @@ class TestASIMFormatter:
             logger_name=logger_name,
             output=output,
         )
+
+        # Additional fields...
+        assert output["AdditionalFields"]["TraceHeaders"] == {}
 
     @freeze_time("2023-10-17 07:15:30")
     def test_request_formatter_logs_correct_fields(self, caplog):
@@ -58,6 +66,11 @@ class TestASIMFormatter:
 
         # Acting Application fields...
         assert output["ActingAppType"] == "Django"
+
+        # Additional fields...
+        assert output["AdditionalFields"]["TraceHeaders"] == {
+            "X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value"
+        }
 
     @pytest.mark.parametrize(
         "log_method_name, expected_severity",
@@ -111,7 +124,7 @@ class TestASIMFormatter:
         [
             (None, {"X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value"}),
             (
-                "DLFE_ZIPKIN_HEADERS",
+                ("X-B3-TraceId", "X-B3-SpanId"),
                 {"X-B3-TraceId": "X-B3-SpanId-Value", "X-B3-SpanId": "X-B3-TraceId-Value"},
             ),
         ],
@@ -120,8 +133,10 @@ class TestASIMFormatter:
     def test_request_formatter_logs_trace_header_with_fallback_to_default(
         self, trace_header_setting, expected_trace_headers, caplog
     ):
+        if trace_header_setting:
+            settings.DLFA_TRACE_HEADERS = trace_header_setting
         overrides = {
-            "extra_headers": expected_trace_headers,
+            "extra_meta": expected_trace_headers,
         }
 
         self._create_request_log(logging.getLogger("django.request"), overrides)
@@ -130,7 +145,7 @@ class TestASIMFormatter:
         assert "TraceHeaders" in output["AdditionalFields"]
         actual_trace_headers = output["AdditionalFields"]["TraceHeaders"]
         assert len(actual_trace_headers) == len(expected_trace_headers)
-        for expected_header, expected_value in expected_trace_headers:
+        for expected_header, expected_value in expected_trace_headers.items():
             assert actual_trace_headers[expected_header] == expected_value
 
     @pytest.mark.parametrize(
@@ -206,6 +221,7 @@ class TestASIMFormatter:
         assert output["ActingAppType"] == "Django"
 
         # Additional fields...
+        # Todo: Include version of DjangoLogFormatterAsimVersion in AdditionalFields
         # We are not checking the whole AdditionalFields.RawLog object here as it would be brittle,
         # and we can trust Python to get it right,
         # so we just test that the start exists and looks realistic...
@@ -232,8 +248,9 @@ class TestASIMFormatter:
         if overrides.get("headers.user_agent"):
             request.headers.__setattr__("user_agent", overrides.get("headers.user_agent"))
 
-        if overrides.get("extra_headers"):
-            request.headers = {**request.headers, **overrides.get("extra_headers")}
+        request.META["X-Amzn-Trace-Id"] = "X-Amzn-Trace-Id-Value"
+        if overrides.get("extra_meta"):
+            request.META = {**request.META, **overrides.get("extra_meta")}
 
         if overrides.get("META.HTTP_USER_AGENT"):
             request.META["HTTP_USER_AGENT"] = overrides.get("META.HTTP_USER_AGENT")

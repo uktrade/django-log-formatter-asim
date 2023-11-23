@@ -38,9 +38,10 @@ class ASIMFormatterBase:
             "EventSchemaVersion": "0.1.4",
             "ActingAppType": "Django",
             # Other fields...
-            # Todo: Enable this in config?
             "AdditionalFields": {
+                # Todo: Enable RawLog in config?
                 "RawLog": json.dumps(record, default=self._to_dict),
+                "TraceHeaders": {},
             },
         }
         return log_dict
@@ -80,13 +81,16 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         log_dict["SrcIpAddr"] = request.environ.get("REMOTE_ADDR", None)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
         log_dict["SrcPortNumber"] = request.environ.get("SERVER_PORT", None)
+        user_id, username = self._get_user_details(request)
+        log_dict["SrcUserId"] = user_id
+        log_dict["SrcUsername"] = username
 
         # Acting Application fields...
         log_dict["HttpUserAgent"] = self._get_user_agent()
 
-        user_id, username = self._get_user_details(request)
-        log_dict["SrcUserId"] = user_id
-        log_dict["SrcUsername"] = username
+        # Additional fields...
+        for trace_header in getattr(settings, "DLFA_TRACE_HEADERS", ("X-Amzn-Trace-Id",)):
+            log_dict["AdditionalFields"]["TraceHeaders"][trace_header] = request.META[trace_header]
 
         return log_dict
 
