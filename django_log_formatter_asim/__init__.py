@@ -39,7 +39,9 @@ class ASIMFormatterBase:
             "ActingAppType": "Django",
             # Other fields...
             # Todo: Enable this in config?
-            "AdditionalFields": json.dumps(record, default=self._to_dict),
+            "AdditionalFields": {
+                "RawLog": json.dumps(record, default=self._to_dict),
+            },
         }
         return log_dict
 

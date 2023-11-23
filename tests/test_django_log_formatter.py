@@ -38,25 +38,6 @@ class TestASIMFormatter:
             output=output,
         )
 
-    @pytest.mark.parametrize(
-        "log_method_name, expected_severity",
-        [
-            ("debug", "Informational"),
-            ("info", "Informational"),
-            ("warning", "Low"),
-            ("error", "Medium"),
-            ("critical", "High"),
-        ],
-    )
-    def test_formatter_logs_correct_severity(self, log_method_name, expected_severity, caplog):
-        log_dot_level = getattr(logging.getLogger("django"), log_method_name)
-
-        log_dot_level(f"Test {log_method_name} log message")
-
-        output = self._get_json_log_entry(caplog)
-        assert output["EventSeverity"] == expected_severity
-        assert output["EventOriginalSeverity"] == str(log_method_name).upper()
-
     @freeze_time("2023-10-17 07:15:30")
     def test_request_formatter_logs_correct_fields(self, caplog):
         logger_name = "django.request"
@@ -77,6 +58,25 @@ class TestASIMFormatter:
 
         # Acting Application fields...
         assert output["ActingAppType"] == "Django"
+
+    @pytest.mark.parametrize(
+        "log_method_name, expected_severity",
+        [
+            ("debug", "Informational"),
+            ("info", "Informational"),
+            ("warning", "Low"),
+            ("error", "Medium"),
+            ("critical", "High"),
+        ],
+    )
+    def test_formatter_logs_correct_severity(self, log_method_name, expected_severity, caplog):
+        log_dot_level = getattr(logging.getLogger("django"), log_method_name)
+
+        log_dot_level(f"Test {log_method_name} log message")
+
+        output = self._get_json_log_entry(caplog)
+        assert output["EventSeverity"] == expected_severity
+        assert output["EventOriginalSeverity"] == str(log_method_name).upper()
 
     @pytest.mark.parametrize(
         "user_agent_fields_to_unset, expected_user_agent",
@@ -107,6 +107,33 @@ class TestASIMFormatter:
         assert output["HttpUserAgent"] == expected_user_agent
 
     @pytest.mark.parametrize(
+        "trace_header_setting, expected_trace_headers",
+        [
+            (None, {"X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value"}),
+            (
+                "DLFE_ZIPKIN_HEADERS",
+                {"X-B3-TraceId": "X-B3-SpanId-Value", "X-B3-SpanId": "X-B3-TraceId-Value"},
+            ),
+        ],
+    )
+    @freeze_time("2023-10-17 07:15:30")
+    def test_request_formatter_logs_trace_header_with_fallback_to_default(
+        self, trace_header_setting, expected_trace_headers, caplog
+    ):
+        overrides = {
+            "extra_headers": expected_trace_headers,
+        }
+
+        self._create_request_log(logging.getLogger("django.request"), overrides)
+
+        output = self._get_json_log_entry(caplog)
+        assert "TraceHeaders" in output["AdditionalFields"]
+        actual_trace_headers = output["AdditionalFields"]["TraceHeaders"]
+        assert len(actual_trace_headers) == len(expected_trace_headers)
+        for expected_header, expected_value in expected_trace_headers:
+            assert actual_trace_headers[expected_header] == expected_value
+
+    @pytest.mark.parametrize(
         "log_sensitive_user_data",
         [
             ("UNSET"),
@@ -127,14 +154,15 @@ class TestASIMFormatter:
         output = self._get_json_log_entry(caplog)
         assert output["SrcUserId"] > 0
         assert output["SrcUsername"] == "{{USERNAME}}"
-        assert TEST_USERNAME not in output["AdditionalFields"]
-        assert "{{USERNAME}}" in output["AdditionalFields"]
-        assert TEST_EMAIL not in output["AdditionalFields"]
-        assert "{{EMAIL}}" in output["AdditionalFields"]
-        assert TEST_FIRST_NAME not in output["AdditionalFields"]
-        assert "{{FIRST_NAME}}" in output["AdditionalFields"]
-        assert TEST_LAST_NAME not in output["AdditionalFields"]
-        assert "{{LAST_NAME}}" in output["AdditionalFields"]
+        raw_log = output["AdditionalFields"]["RawLog"]
+        assert TEST_USERNAME not in raw_log
+        assert "{{USERNAME}}" in raw_log
+        assert TEST_EMAIL not in raw_log
+        assert "{{EMAIL}}" in raw_log
+        assert TEST_FIRST_NAME not in raw_log
+        assert "{{FIRST_NAME}}" in raw_log
+        assert TEST_LAST_NAME not in raw_log
+        assert "{{LAST_NAME}}" in raw_log
 
     def test_logs_log_personally_identifiable_information_when_log_sensitive_user_data_is_on(
         self, caplog
@@ -178,10 +206,13 @@ class TestASIMFormatter:
         assert output["ActingAppType"] == "Django"
 
         # Additional fields...
-        # We are not checking the whole AdditionalFields object here as it would be brittle,
+        # We are not checking the whole AdditionalFields.RawLog object here as it would be brittle,
         # and we can trust Python to get it right,
         # so we just test that the start exists and looks realistic...
-        assert f'"name": "{logger_name}", "msg": "Test log message",' in output["AdditionalFields"]
+        assert (
+            f'"name": "{logger_name}", "msg": "Test log message",'
+            in output["AdditionalFields"]["RawLog"]
+        )
 
     def _create_request(self, overrides=None):
         if overrides is None:
@@ -200,6 +231,9 @@ class TestASIMFormatter:
 
         if overrides.get("headers.user_agent"):
             request.headers.__setattr__("user_agent", overrides.get("headers.user_agent"))
+
+        if overrides.get("extra_headers"):
+            request.headers = {**request.headers, **overrides.get("extra_headers")}
 
         if overrides.get("META.HTTP_USER_AGENT"):
             request.META["HTTP_USER_AGENT"] = overrides.get("META.HTTP_USER_AGENT")
