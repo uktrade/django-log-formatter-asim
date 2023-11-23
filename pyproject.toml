@@ -23,6 +23,7 @@ pytest = "^7.4.3"
 tox = "^4.11.3"
 freezegun = "^1.2.2"
 pytest-django = "^4.7.0"
+importlib-metadata = "^6.8.0"
 
 [build-system]
 requires = ["poetry-core"]

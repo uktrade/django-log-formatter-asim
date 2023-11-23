@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime
+from importlib.metadata import distribution
 
 from django.conf import settings
 
@@ -39,6 +40,7 @@ class ASIMFormatterBase:
             "ActingAppType": "Django",
             # Other fields...
             "AdditionalFields": {
+                "DjangoLogFormatterAsimVersion": distribution("django-log-formatter-asim").version,
                 # Todo: Enable RawLog in config?
                 "RawLog": json.dumps(record, default=self._to_dict),
                 "TraceHeaders": {},

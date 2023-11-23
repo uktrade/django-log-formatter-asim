@@ -1,5 +1,6 @@
 import json
 import logging
+from importlib.metadata import distribution
 
 import pytest
 from django.conf import settings
@@ -221,7 +222,10 @@ class TestASIMFormatter:
         assert output["ActingAppType"] == "Django"
 
         # Additional fields...
-        # Todo: Include version of DjangoLogFormatterAsimVersion in AdditionalFields
+        assert (
+            output["AdditionalFields"]["DjangoLogFormatterAsimVersion"]
+            == distribution("django-log-formatter-asim").version
+        )
         # We are not checking the whole AdditionalFields.RawLog object here as it would be brittle,
         # and we can trust Python to get it right,
         # so we just test that the start exists and looks realistic...
