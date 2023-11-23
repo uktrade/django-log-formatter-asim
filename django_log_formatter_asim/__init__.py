@@ -9,7 +9,7 @@ class ASIMFormatterBase:
     def __init__(self, record):
         self.record = record
 
-        if not getattr(settings, "DLFA_LOG_SENSITIVE_USER_DATA", False):
+        if not getattr(settings, "DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION", False):
             self._replace_personally_identifiable_information()
 
     def _replace_personally_identifiable_information(self):

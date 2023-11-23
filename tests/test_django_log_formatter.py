@@ -117,7 +117,7 @@ class TestASIMFormatter:
         self, log_sensitive_user_data, caplog
     ):
         if log_sensitive_user_data != "UNSET":
-            settings.DLFA_LOG_SENSITIVE_USER_DATA = log_sensitive_user_data
+            settings.DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION = log_sensitive_user_data
         overrides = {
             "user": self._create_user(),
         }
@@ -139,7 +139,7 @@ class TestASIMFormatter:
     def test_logs_log_personally_identifiable_information_when_log_sensitive_user_data_is_on(
         self, caplog
     ):
-        settings.DLFA_LOG_SENSITIVE_USER_DATA = True
+        settings.DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION = True
         overrides = {
             "user": self._create_user(),
         }
