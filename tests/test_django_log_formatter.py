@@ -210,6 +210,8 @@ class TestASIMFormatter:
         raw_log = output["AdditionalFields"]["RawLog"]
         assert TEST_USERNAME in raw_log
         assert TEST_EMAIL in raw_log
+        assert TEST_FIRST_NAME in raw_log
+        assert TEST_LAST_NAME in raw_log
 
     def test_logs_anonymous_user_when_no_user_logged_in(self, caplog):
         from django.contrib.auth.models import AnonymousUser
@@ -272,7 +274,11 @@ class TestASIMFormatter:
 
         User = get_user_model()
         user = User.objects.create_user(
-            username=TEST_USERNAME, email=TEST_EMAIL, password="test-password"
+            username=TEST_USERNAME,
+            email=TEST_EMAIL,
+            password="test-password",
+            first_name=TEST_FIRST_NAME,
+            last_name=TEST_LAST_NAME,
         )
         return user
 
