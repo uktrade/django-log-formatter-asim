@@ -22,9 +22,11 @@ class TestASIMFormatter:
         caplog.handler.setFormatter(ASIMFormatter())
 
     @pytest.fixture(autouse=True)
-    def reset_trace_headers_setting(self, caplog):
+    def reset_settings(self, caplog):
         if getattr(settings, "DLFA_TRACE_HEADERS", False):
             del settings.DLFA_TRACE_HEADERS
+        if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
+            del settings.DLFA_INCLUDE_RAW_LOG
 
     @pytest.mark.parametrize(
         "logger_name",
@@ -149,6 +151,32 @@ class TestASIMFormatter:
         for expected_header, expected_value in expected_trace_headers.items():
             assert actual_trace_headers[expected_header] == expected_value
 
+    def test_does_not_includes_raw_log_by_default(self, caplog):
+        logging.getLogger("django").debug("Test log message")
+
+        output = self._get_json_log_entry(caplog)
+
+        # We are not checking the whole AdditionalFields.RawLog object here as it would be brittle,
+        # and we can trust Python to get it right,
+        # so we just test that the start exists and looks realistic...
+        assert "RawLog" not in output["AdditionalFields"]
+
+    def test_log_includes_raw_log_with_dlfa_include_raw_log_true(self, caplog):
+        settings.DLFA_INCLUDE_RAW_LOG = True
+        logger_name = "django"
+        expected_message = "Test log message"
+        logging.getLogger(logger_name).debug(expected_message)
+
+        output = self._get_json_log_entry(caplog)
+
+        # We are not checking the whole AdditionalFields.RawLog object here as it would be brittle,
+        # and we can trust Python to get it right,
+        # so we just test that the start exists and looks realistic...
+        assert (
+            f'"name": "{logger_name}", "msg": "{expected_message}",'
+            in output["AdditionalFields"]["RawLog"]
+        )
+
     @pytest.mark.parametrize(
         "log_sensitive_user_data",
         [
@@ -159,6 +187,7 @@ class TestASIMFormatter:
     def test_does_not_log_personally_identifiable_information_when_log_sensitive_user_data_is_off(
         self, log_sensitive_user_data, caplog
     ):
+        settings.DLFA_INCLUDE_RAW_LOG = True
         if log_sensitive_user_data != "UNSET":
             settings.DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION = log_sensitive_user_data
         overrides = {
@@ -183,6 +212,7 @@ class TestASIMFormatter:
     def test_logs_log_personally_identifiable_information_when_log_sensitive_user_data_is_on(
         self, caplog
     ):
+        settings.DLFA_INCLUDE_RAW_LOG = True
         settings.DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION = True
         overrides = {
             "user": self._create_user(),
@@ -192,6 +222,11 @@ class TestASIMFormatter:
 
         output = self._get_json_log_entry(caplog)
         assert output["SrcUsername"] == TEST_USERNAME
+        raw_log = output["AdditionalFields"]["RawLog"]
+        assert TEST_USERNAME in raw_log
+        assert TEST_EMAIL in raw_log
+        # assert TEST_FIRST_NAME in raw_log
+        # assert TEST_LAST_NAME in raw_log
 
     def test_logs_anonymous_user_when_no_user_logged_in(self, caplog):
         from django.contrib.auth.models import AnonymousUser
@@ -225,13 +260,6 @@ class TestASIMFormatter:
         assert (
             output["AdditionalFields"]["DjangoLogFormatterAsimVersion"]
             == distribution("django-log-formatter-asim").version
-        )
-        # We are not checking the whole AdditionalFields.RawLog object here as it would be brittle,
-        # and we can trust Python to get it right,
-        # so we just test that the start exists and looks realistic...
-        assert (
-            f'"name": "{logger_name}", "msg": "Test log message",'
-            in output["AdditionalFields"]["RawLog"]
         )
 
     def _create_request(self, overrides=None):

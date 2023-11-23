@@ -41,11 +41,13 @@ class ASIMFormatterBase:
             # Other fields...
             "AdditionalFields": {
                 "DjangoLogFormatterAsimVersion": distribution("django-log-formatter-asim").version,
-                # Todo: Enable RawLog in config?
-                "RawLog": json.dumps(record, default=self._to_dict),
                 "TraceHeaders": {},
             },
         }
+
+        if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
+            log_dict["AdditionalFields"]["RawLog"] = json.dumps(record, default=self._to_dict)
+
         return log_dict
 
     def _to_dict(self, object):
