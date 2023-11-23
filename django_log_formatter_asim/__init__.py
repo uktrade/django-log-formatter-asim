@@ -82,7 +82,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         request = self.record.request
 
         # Source fields...
-        log_dict["SrcIpAddr"] = request.environ.get("REMOTE_ADDR", None)
+        log_dict["SrcIpAddr"] = request.headers.get("REMOTE_ADDR", None)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
         log_dict["SrcPortNumber"] = request.environ.get("SERVER_PORT", None)
         user_id, username = self._get_user_details(request)
@@ -94,7 +94,9 @@ class ASIMRequestFormatter(ASIMFormatterBase):
 
         # Additional fields...
         for trace_header in getattr(settings, "DLFA_TRACE_HEADERS", ("X-Amzn-Trace-Id",)):
-            log_dict["AdditionalFields"]["TraceHeaders"][trace_header] = request.META[trace_header]
+            log_dict["AdditionalFields"]["TraceHeaders"][trace_header] = request.headers[
+                trace_header
+            ]
 
         return log_dict
 

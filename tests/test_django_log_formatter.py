@@ -94,28 +94,13 @@ class TestASIMFormatter:
         assert output["EventSeverity"] == expected_severity
         assert output["EventOriginalSeverity"] == str(log_method_name).upper()
 
-    @pytest.mark.parametrize(
-        "user_agent_fields_to_unset, expected_user_agent",
-        [
-            ([], "Test request.user_agent"),
-            (["user_agent"], "Test request.headers.user_agent"),
-            (["user_agent", "headers.user_agent"], "Test request.META.HTTP_USER_AGENT"),
-            (["user_agent", "headers.user_agent", "META.HTTP_USER_AGENT"], None),
-        ],
-    )
-    def test_request_formatter_sets_http_user_agent_with_fallbacks(
-        self,
-        user_agent_fields_to_unset,
-        expected_user_agent,
-        caplog,
-    ):
+    expected_user_agent = "Test request.user_agent"
+
+    def test_request_formatter_sets_http_user_agent(self, caplog):
+        expected_user_agent = "Test request.headers.user_agent"
         overrides = {
-            "user_agent": "Test request.user_agent",
-            "headers.user_agent": "Test request.headers.user_agent",
-            "META.HTTP_USER_AGENT": "Test request.META.HTTP_USER_AGENT",
+            "user_agent": expected_user_agent,
         }
-        for field_to_unset in user_agent_fields_to_unset:
-            del overrides[field_to_unset]
 
         self._create_request_log(logging.getLogger("django.request"), overrides)
 
@@ -139,7 +124,7 @@ class TestASIMFormatter:
         if trace_header_setting:
             settings.DLFA_TRACE_HEADERS = trace_header_setting
         overrides = {
-            "extra_meta": expected_trace_headers,
+            "trace_headers": expected_trace_headers,
         }
 
         self._create_request_log(logging.getLogger("django.request"), overrides)
@@ -225,8 +210,6 @@ class TestASIMFormatter:
         raw_log = output["AdditionalFields"]["RawLog"]
         assert TEST_USERNAME in raw_log
         assert TEST_EMAIL in raw_log
-        # assert TEST_FIRST_NAME in raw_log
-        # assert TEST_LAST_NAME in raw_log
 
     def test_logs_anonymous_user_when_no_user_logged_in(self, caplog):
         from django.contrib.auth.models import AnonymousUser
@@ -265,30 +248,22 @@ class TestASIMFormatter:
     def _create_request(self, overrides=None):
         if overrides is None:
             overrides = {}
-        request = RequestFactory().get(path="/")
-
+        headers = {
+            "X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value",
+        }
         if overrides.get("remote_address"):
-            request.environ["REMOTE_ADDR"] = overrides.get("remote_address")
-            request.META["REMOTE_ADDR"] = overrides.get("remote_address")
+            headers["REMOTE_ADDR"] = overrides.get("remote_address")
+        if overrides.get("user_agent"):
+            headers["User-Agent"] = overrides.get("user_agent")
+        if overrides.get("trace_headers"):
+            headers = {**headers, **overrides.get("trace_headers")}
+
+        request = RequestFactory().get(path="/", headers=headers)
 
         if overrides.get("server_port"):
             request.environ["SERVER_PORT"] = overrides.get("server_port")
-
-        if overrides.get("user_agent"):
-            request.__setattr__("user_agent", overrides.get("user_agent"))
-
-        if overrides.get("headers.user_agent"):
-            request.headers.__setattr__("user_agent", overrides.get("headers.user_agent"))
-
-        request.META["X-Amzn-Trace-Id"] = "X-Amzn-Trace-Id-Value"
-        if overrides.get("extra_meta"):
-            request.META = {**request.META, **overrides.get("extra_meta")}
-
-        if overrides.get("META.HTTP_USER_AGENT"):
-            request.META["HTTP_USER_AGENT"] = overrides.get("META.HTTP_USER_AGENT")
-
         if overrides.get("user"):
-            request.__setattr__("user", overrides.get("user"))
+            request.user = overrides.get("user")
 
         return request
 
