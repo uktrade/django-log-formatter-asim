@@ -22,7 +22,7 @@ class ASIMFormatterBase:
                 user.first_name = "{{FIRST_NAME}}"
                 user.last_name = "{{LAST_NAME}}"
 
-    def _get_log_dict_base(self):
+    def get_log_dict_base(self):
         record = self.record
         log_time = datetime.utcfromtimestamp(record.created).isoformat()
         log_dict = {
@@ -68,8 +68,7 @@ class ASIMFormatterBase:
 
 
 class ASIMSystemFormatter(ASIMFormatterBase):
-    def get_log_dict(self):
-        return self._get_log_dict_base()
+    pass
 
 
 class ASIMRequestFormatter(ASIMFormatterBase):
@@ -77,7 +76,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         super().__init__(record)
 
     def get_log_dict(self):
-        log_dict = self._get_log_dict_base()
+        log_dict = super().get_log_dict_base()
 
         request = self.record.request
 
