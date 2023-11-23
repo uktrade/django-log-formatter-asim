@@ -93,17 +93,6 @@ argon2 = ["argon2-cffi (>=19.1.0)"]
 bcrypt = ["bcrypt"]
 
 [[package]]
-name = "django-ipware"
-version = "5.0.2"
-description = "A Django application to retrieve user's IP address"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "django-ipware-5.0.2.tar.gz", hash = "sha256:ab3ab7645e674df682c1146a5bddfa5151b1b7be7be9210872c3156bd836aad4"},
-    {file = "django_ipware-5.0.2-py2.py3-none-any.whl", hash = "sha256:838b7aede77734603bd32ebd08ad7957304266580b646f8cbe982c4833b71c84"},
-]
-
-[[package]]
 name = "exceptiongroup"
 version = "1.2.0"
 description = "Backport of PEP 654 (exception groups)"
@@ -527,4 +516,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4"
-content-hash = "f8d4f676b28062e9bf277f0989df8e7293bada6d5fd89e08d79370f5bd777ff1"
+content-hash = "ad86191bd688298b14b67d44cdb9360384eae54e32aa6459b6aa37cbd4c0c873"
