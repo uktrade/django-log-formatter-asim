@@ -114,7 +114,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         request = self.record.request
         http_user_agent = getattr(request, "user_agent", None)
         if not http_user_agent:
-            http_user_agent = getattr(request.headers, "user_agent", None)
+            http_user_agent = getattr(request.headers, "User-Agent", None)
         if not http_user_agent:
             http_user_agent = request.META.get("HTTP_USER_AGENT", None)
         return http_user_agent

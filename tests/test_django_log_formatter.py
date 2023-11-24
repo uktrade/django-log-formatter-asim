@@ -251,16 +251,19 @@ class TestASIMFormatter:
         if overrides is None:
             overrides = {}
         headers = {
-            "X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value",
+            "HTTP_X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value",
         }
         if overrides.get("remote_address"):
-            headers["REMOTE_ADDR"] = overrides.get("remote_address")
+            headers["HTTP_REMOTE_ADDR"] = overrides.get("remote_address")
         if overrides.get("user_agent"):
-            headers["User-Agent"] = overrides.get("user_agent")
+            headers["HTTP_USER_AGENT"] = overrides.get("user_agent")
         if overrides.get("trace_headers"):
-            headers = {**headers, **overrides.get("trace_headers")}
+            for key, value in overrides.get("trace_headers").items():
+                headers[f"HTTP_{key}"] = value
 
-        request = RequestFactory().get(path="/", headers=headers)
+        request_factory = RequestFactory()
+
+        request = request_factory.get(path="/", data={}, **headers)
 
         if overrides.get("server_port"):
             request.environ["SERVER_PORT"] = overrides.get("server_port")
