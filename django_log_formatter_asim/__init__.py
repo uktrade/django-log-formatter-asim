@@ -21,6 +21,7 @@ class ASIMFormatterBase:
                 user.email = "{{EMAIL}}"
                 user.first_name = "{{FIRST_NAME}}"
                 user.last_name = "{{LAST_NAME}}"
+                user.password = "{{PASSWORD}}"
 
     
     def get_log_dict_with_raw(self, log_dict):
@@ -79,6 +80,13 @@ class ASIMSystemFormatter(ASIMFormatterBase):
 
 
 class ASIMRequestFormatter(ASIMFormatterBase):
+    def _serialize_user(self, user):
+        serialized_user = vars(user).copy()
+        serialized_user.pop("_state")
+        serialized_user["date_joined"] = serialized_user["date_joined"].isoformat()
+
+        return serialized_user
+        
     def _serialize_request(self, request):
         return {
             'method': request.method,
@@ -86,6 +94,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
             'GET': dict(request.GET),
             'POST': dict(request.POST),
             'headers': dict(request.headers),
+            'user': self._serialize_user(request.user)
         }
         
     def get_log_dict_with_raw(self, log_dict):
