@@ -22,6 +22,13 @@ class ASIMFormatterBase:
                 user.first_name = "{{FIRST_NAME}}"
                 user.last_name = "{{LAST_NAME}}"
 
+    
+    def get_log_dict_with_raw(self, log_dict):
+        copied_dict = log_dict.copy()
+        copied_dict["AdditionalFields"]["RawLog"] = json.dumps(self.record, default=self._to_dict)
+        
+        return copied_dict
+    
     def get_log_dict(self):
         record = self.record
         log_time = datetime.utcfromtimestamp(record.created).isoformat()
@@ -44,10 +51,10 @@ class ASIMFormatterBase:
                 "TraceHeaders": {},
             },
         }
-
+    
         if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
-            log_dict["AdditionalFields"]["RawLog"] = json.dumps(record, default=self._to_dict)
-
+            return self.get_log_dict_with_raw(log_dict)
+        
         return log_dict
 
     def _to_dict(self, object):
@@ -72,6 +79,25 @@ class ASIMSystemFormatter(ASIMFormatterBase):
 
 
 class ASIMRequestFormatter(ASIMFormatterBase):
+    def _serialize_request(self, request):
+        return {
+            'method': request.method,
+            'path': request.path,
+            'GET': dict(request.GET),
+            'POST': dict(request.POST),
+            'headers': dict(request.headers),
+        }
+        
+    def get_log_dict_with_raw(self, log_dict):
+        copied_dict = log_dict.copy()
+        serialized_request = self._serialize_request(self.record.request)
+        
+        record_dict = vars(self.record).copy()
+        record_dict["request"] = serialized_request
+        copied_dict["AdditionalFields"]["RawLog"] = json.dumps(record_dict)
+        
+        return copied_dict
+    
     def get_log_dict(self):
         log_dict = super().get_log_dict()
 
@@ -90,9 +116,9 @@ class ASIMRequestFormatter(ASIMFormatterBase):
 
         # Additional fields...
         for trace_header in getattr(settings, "DLFA_TRACE_HEADERS", ("X-Amzn-Trace-Id",)):
-            log_dict["AdditionalFields"]["TraceHeaders"][trace_header] = request.headers[
-                trace_header
-            ]
+            log_dict["AdditionalFields"]["TraceHeaders"][trace_header] = request.headers.get(
+                trace_header, None
+            )
 
         return log_dict
 
