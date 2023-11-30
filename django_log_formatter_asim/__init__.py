@@ -6,7 +6,7 @@ from importlib.metadata import distribution
 from django.conf import settings
 
 
-class ASIMFormatterBase:
+class ASIMRootFormatter:
     def __init__(self, record):
         self.record = record
 
@@ -75,17 +75,23 @@ class ASIMFormatterBase:
         return map[log_level]
 
 
-class ASIMSystemFormatter(ASIMFormatterBase):
-    pass
-
-
-class ASIMRequestFormatter(ASIMFormatterBase):
+class ASIMRequestFormatter(ASIMRootFormatter):
     def _serialize_user(self, user):
         serialized_user = vars(user).copy()
-        serialized_user.pop("_state")
-        serialized_user["date_joined"] = serialized_user["date_joined"].isoformat()
-
-        return serialized_user
+        if "date_joined" in serialized_user:
+            serialized_user["date_joined"] = serialized_user["date_joined"].isoformat()
+        
+        return {
+            "username": serialized_user.get("username", None),
+            "email": serialized_user.get("email", None),
+            "first_name": serialized_user.get("first_name", None),
+            "last_name": serialized_user.get("last_name", None),
+            "password": serialized_user.get("password"),
+            "date_joined": serialized_user.get("date_joined"),
+            "is_active": serialized_user.get("is_active"),
+            "is_staff": serialized_user.get("is_staff"),
+            "is_superuser": serialized_user.get("is_superuser"),
+        }
         
     def _serialize_request(self, request):
         return {
@@ -104,7 +110,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
         record_dict = vars(self.record).copy()
         record_dict["request"] = serialized_request
         copied_dict["AdditionalFields"]["RawLog"] = json.dumps(record_dict)
-        
+
         return copied_dict
     
     def get_log_dict(self):
@@ -163,7 +169,7 @@ class ASIMRequestFormatter(ASIMFormatterBase):
 
 
 ASIM_FORMATTERS = {
-    "root": ASIMSystemFormatter,
+    "root": ASIMRootFormatter,
     "django.request": ASIMRequestFormatter,
 }
 
@@ -173,7 +179,7 @@ class ASIMFormatter(logging.Formatter):
         if record.name in ASIM_FORMATTERS:
             asim_formatter = ASIM_FORMATTERS[record.name]
         else:
-            asim_formatter = ASIMSystemFormatter
+            asim_formatter = ASIMRootFormatter
 
         formatter = asim_formatter(record=record)
 

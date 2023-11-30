@@ -1,3 +1,4 @@
+from cmath import log
 import json
 import logging
 from importlib.metadata import distribution
@@ -8,12 +9,29 @@ from django.test import RequestFactory
 from freezegun import freeze_time
 
 from django_log_formatter_asim import ASIMFormatter
+from django_log_formatter_asim import ASIMRequestFormatter
 
 TEST_USERNAME = "test_username"
 TEST_EMAIL = "test_email@test.com"
 TEST_LAST_NAME = "Test last name"
 TEST_FIRST_NAME = "Test first name"
+TEST_PASSWORD = "mypassword123"
 
+
+class TestHandler(logging.Handler):
+    """
+    A handler class which stores LogRecord entries in a list
+    """
+    def __init__(self, records_list):
+        """
+        Initiate the handler
+        :param records_list: a list to store the LogRecords entries
+        """
+        self.records_list = records_list
+        super().__init__()
+
+    def emit(self, record):
+        self.records_list.append(record)
 
 @pytest.mark.django_db
 class TestASIMFormatter:
@@ -54,7 +72,7 @@ class TestASIMFormatter:
         logger_name = "django.request"
         overrides = {"remote_address": "10.9.8.7", "server_port": "567"}
 
-        self._create_request_log(logging.getLogger(logger_name), overrides)
+        self._create_request_log_record(logging.getLogger(logger_name), overrides)
 
         output = self._get_json_log_entry(caplog)
         self._assert_base_fields(
@@ -102,7 +120,7 @@ class TestASIMFormatter:
             "user_agent": expected_user_agent,
         }
 
-        self._create_request_log(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(logging.getLogger("django.request"), overrides)
 
         output = self._get_json_log_entry(caplog)
         assert output["HttpUserAgent"] == expected_user_agent
@@ -127,7 +145,7 @@ class TestASIMFormatter:
             "trace_headers": expected_trace_headers,
         }
 
-        self._create_request_log(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(logging.getLogger("django.request"), overrides)
 
         output = self._get_json_log_entry(caplog)
         assert "TraceHeaders" in output["AdditionalFields"]
@@ -179,7 +197,7 @@ class TestASIMFormatter:
             "user": self._create_user(),
         }
 
-        self._create_request_log(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(logging.getLogger("django.request"), overrides)
 
         output = self._get_json_log_entry(caplog)
         assert output["SrcUserId"] > 0
@@ -193,6 +211,8 @@ class TestASIMFormatter:
         assert "{{FIRST_NAME}}" in raw_log
         assert TEST_LAST_NAME not in raw_log
         assert "{{LAST_NAME}}" in raw_log
+        assert TEST_PASSWORD not in raw_log
+        assert "{{PASSWORD}}" in raw_log
 
     def test_logs_log_personally_identifiable_information_when_log_sensitive_user_data_is_on(
         self, caplog
@@ -203,7 +223,7 @@ class TestASIMFormatter:
             "user": self._create_user(),
         }
 
-        self._create_request_log(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(logging.getLogger("django.request"), overrides)
 
         output = self._get_json_log_entry(caplog)
         assert output["SrcUsername"] == TEST_USERNAME
@@ -220,11 +240,59 @@ class TestASIMFormatter:
             "user": AnonymousUser(),
         }
 
-        self._create_request_log(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(logging.getLogger("django.request"), overrides)
 
         output = self._get_json_log_entry(caplog)
         assert output["SrcUserId"] is None
         assert output["SrcUsername"] == "AnonymousUser"
+    
+    def test_serialize_user(self):
+        request_log = self._create_request_log_record(logging.getLogger("django.request"))
+        user = self._create_user()
+        user.random_field_name = "blah"
+        
+        serialized_user = ASIMRequestFormatter(request_log)._serialize_user(user)
+        
+        assert serialized_user.get("username") == user.username
+        assert serialized_user.get("email") == user.email
+        assert serialized_user.get("first_name") == user.first_name
+        assert serialized_user.get("last_name") == user.last_name
+        assert serialized_user.get("password") == user.password
+        assert serialized_user.get("date_joined") == user.date_joined.isoformat()
+        assert serialized_user.get("is_active") == user.is_active
+        assert serialized_user.get("is_staff") == user.is_staff
+        assert serialized_user.get("is_superuser") == user.is_superuser
+        assert "random_field_name" not in serialized_user.keys()
+    
+    def test_serialize_request(self):
+        request_log = self._create_request_log_record(logging.getLogger("django.request"))
+        request = request_log.request
+        request.user = self._create_user()
+        request.random_field_name = "blah"
+        
+        serialized_request = ASIMRequestFormatter(request_log)._serialize_request(request)
+        
+        assert serialized_request.get("method") == request.method
+        assert serialized_request.get("path") == request.path
+        assert serialized_request.get("GET") == dict(request.GET)
+        assert serialized_request.get("POST") == dict(request.POST)
+        assert serialized_request.get("headers") == dict(request.headers)
+        assert serialized_request.get("user") == ASIMRequestFormatter(request_log)._serialize_user(request.user)
+        
+    def test_request_formatter_get_log_dict_with_raw(self):
+        request_log = self._create_request_log_record(logging.getLogger("django.request"))
+        request_log.request.user = self._create_user()
+        
+        formatter = ASIMRequestFormatter(request_log)
+        log_dict_with_raw = formatter.get_log_dict_with_raw({"AdditionalFields": {}})
+        serialized_request = formatter._serialize_request(request_log.request)
+        record_dict = vars(request_log).copy()
+        record_dict["request"] = serialized_request
+        
+        assert log_dict_with_raw["AdditionalFields"]["RawLog"] == json.dumps(record_dict)
+    
+    def test_root_formatter_get_log_dict_with_raw(self):
+        pass
 
     def _assert_base_fields(self, expected_log_time, logger_name, output):
         # Event fields...
@@ -285,14 +353,17 @@ class TestASIMFormatter:
         )
         return user
 
-    def _create_request_log(self, logger, overrides={}):
+    def _create_request_log_record(self, logger, overrides={}):
         request = self._create_request(overrides=overrides)
+        logger.addHandler(TestHandler(records_list=[]))
         logger.debug(
             msg="Test log message",
             extra={
                 "request": request,
             },
         )
+
+        return logger.handlers[-1].records_list[-1]
 
     def _get_json_log_entry(self, caplog):
         return json.loads(caplog.text)
