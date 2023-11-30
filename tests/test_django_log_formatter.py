@@ -1,4 +1,3 @@
-from cmath import log
 import json
 import logging
 from importlib.metadata import distribution
@@ -19,19 +18,17 @@ TEST_PASSWORD = "mypassword123"
 
 
 class TestHandler(logging.Handler):
-    """
-    A handler class which stores LogRecord entries in a list
-    """
+    """A handler class which stores LogRecord entries in a list."""
+
     def __init__(self, records_list):
-        """
-        Initiate the handler
-        :param records_list: a list to store the LogRecords entries
-        """
+        """Initiate the handler :param records_list: a list to store the
+        LogRecords entries."""
         self.records_list = records_list
         super().__init__()
 
     def emit(self, record):
         self.records_list.append(record)
+
 
 @pytest.mark.django_db
 class TestASIMFormatter:
@@ -245,14 +242,14 @@ class TestASIMFormatter:
         output = self._get_json_log_entry(caplog)
         assert output["SrcUserId"] is None
         assert output["SrcUsername"] == "AnonymousUser"
-    
+
     def test_serialize_user(self):
         request_log = self._create_request_log_record(logging.getLogger("django.request"))
         user = self._create_user()
         user.random_field_name = "blah"
-        
+
         serialized_user = ASIMRequestFormatter(request_log)._serialize_user(user)
-        
+
         assert serialized_user.get("username") == user.username
         assert serialized_user.get("email") == user.email
         assert serialized_user.get("first_name") == user.first_name
@@ -263,34 +260,36 @@ class TestASIMFormatter:
         assert serialized_user.get("is_staff") == user.is_staff
         assert serialized_user.get("is_superuser") == user.is_superuser
         assert "random_field_name" not in serialized_user.keys()
-    
+
     def test_serialize_request(self):
         request_log = self._create_request_log_record(logging.getLogger("django.request"))
         request = request_log.request
         request.user = self._create_user()
         request.random_field_name = "blah"
-        
+
         serialized_request = ASIMRequestFormatter(request_log)._serialize_request(request)
-        
+
         assert serialized_request.get("method") == request.method
         assert serialized_request.get("path") == request.path
         assert serialized_request.get("GET") == dict(request.GET)
         assert serialized_request.get("POST") == dict(request.POST)
         assert serialized_request.get("headers") == dict(request.headers)
-        assert serialized_request.get("user") == ASIMRequestFormatter(request_log)._serialize_user(request.user)
-        
+        assert serialized_request.get("user") == ASIMRequestFormatter(request_log)._serialize_user(
+            request.user
+        )
+
     def test_request_formatter_get_log_dict_with_raw(self):
         request_log = self._create_request_log_record(logging.getLogger("django.request"))
         request_log.request.user = self._create_user()
-        
+
         formatter = ASIMRequestFormatter(request_log)
         log_dict_with_raw = formatter.get_log_dict_with_raw({"AdditionalFields": {}})
         serialized_request = formatter._serialize_request(request_log.request)
         record_dict = vars(request_log).copy()
         record_dict["request"] = serialized_request
-        
+
         assert log_dict_with_raw["AdditionalFields"]["RawLog"] == json.dumps(record_dict)
-    
+
     def test_root_formatter_get_log_dict_with_raw(self):
         pass
 

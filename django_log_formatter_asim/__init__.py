@@ -23,13 +23,12 @@ class ASIMRootFormatter:
                 user.last_name = "{{LAST_NAME}}"
                 user.password = "{{PASSWORD}}"
 
-    
     def get_log_dict_with_raw(self, log_dict):
         copied_dict = log_dict.copy()
         copied_dict["AdditionalFields"]["RawLog"] = json.dumps(self.record, default=self._to_dict)
-        
+
         return copied_dict
-    
+
     def get_log_dict(self):
         record = self.record
         log_time = datetime.utcfromtimestamp(record.created).isoformat()
@@ -52,10 +51,10 @@ class ASIMRootFormatter:
                 "TraceHeaders": {},
             },
         }
-    
+
         if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
             return self.get_log_dict_with_raw(log_dict)
-        
+
         return log_dict
 
     def _to_dict(self, object):
@@ -80,7 +79,7 @@ class ASIMRequestFormatter(ASIMRootFormatter):
         serialized_user = vars(user).copy()
         if "date_joined" in serialized_user:
             serialized_user["date_joined"] = serialized_user["date_joined"].isoformat()
-        
+
         return {
             "username": serialized_user.get("username", None),
             "email": serialized_user.get("email", None),
@@ -92,27 +91,27 @@ class ASIMRequestFormatter(ASIMRootFormatter):
             "is_staff": serialized_user.get("is_staff"),
             "is_superuser": serialized_user.get("is_superuser"),
         }
-        
+
     def _serialize_request(self, request):
         return {
-            'method': request.method,
-            'path': request.path,
-            'GET': dict(request.GET),
-            'POST': dict(request.POST),
-            'headers': dict(request.headers),
-            'user': self._serialize_user(request.user)
+            "method": request.method,
+            "path": request.path,
+            "GET": dict(request.GET),
+            "POST": dict(request.POST),
+            "headers": dict(request.headers),
+            "user": self._serialize_user(request.user),
         }
-        
+
     def get_log_dict_with_raw(self, log_dict):
         copied_dict = log_dict.copy()
         serialized_request = self._serialize_request(self.record.request)
-        
+
         record_dict = vars(self.record).copy()
         record_dict["request"] = serialized_request
         copied_dict["AdditionalFields"]["RawLog"] = json.dumps(record_dict)
 
         return copied_dict
-    
+
     def get_log_dict(self):
         log_dict = super().get_log_dict()
 
