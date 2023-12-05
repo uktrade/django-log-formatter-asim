@@ -49,16 +49,17 @@ This package is compatible with [Django User Agents](https://pypi.org/project/dj
 
 ## Settings
 
-`DLFE_APP_NAME` - used to define the application name that should be logged.
+`DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION` - the formatter checks this setting to see if personally identifiable information should be logged. If this is not set to true, only the user's id is logged.
 
-`DLFE_LOG_SENSITIVE_USER_DATA` - the formatter checks this setting to see if user information should be logged. If this is not set to true, only the user's id is logged.
+`DLFA_TRACE_HEADERS` - used for defining custom zipkin headers, the defaults is `("X-Amzn-Trace-Id")`, but for applications hosted in GOV.UK PaaS you should use `("X-B3-TraceId", "X-B3-SpanId")`. If you are running your application in both places side by side during migration, the following should work in your Django settings:
 
-`DLFE_ZIPKIN_HEADERS` - used for defining custom zipkin headers, the defaults is :code:`("X-B3-TraceId" "X-B3-SpanId")`
+`DLFA_INCLUDE_RAW_LOG` - By default the original unformatted log is not included in the ASIM formatted log. You can enable that by setting this to `True` and it will be included in `AddidtionalFields.RawLog`.
 
-The Django configuration file logged is determined by running:
+```python
+from dbt_copilot_python.utility import is_copilot
 
-``` python
-os.getenv('DJANGO_SETTINGS_MODULE')
+if is_copilot():
+   DLFA_TRACE_HEADERS = ("X-B3-TraceId", "X-B3-SpanId")
 ```
 
 ## Formatter classes
@@ -67,7 +68,6 @@ os.getenv('DJANGO_SETTINGS_MODULE')
     ASIM_FORMATTERS = {
         "root": ASIMSystemFormatter,
         "django.request": ASIMRequestFormatter,
-        "django.db.backends": ASIMSystemFormatter,
     }
 ```
 

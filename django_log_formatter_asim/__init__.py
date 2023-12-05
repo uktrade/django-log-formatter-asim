@@ -1,176 +1,163 @@
 import json
 import logging
-import os
-import platform
-from urllib.parse import urlparse
+from datetime import datetime
+from importlib.metadata import distribution
 
 from django.conf import settings
-# TODO...
-from kubi_ecs_logger import Logger
-from kubi_ecs_logger.models import BaseSchema
-from kubi_ecs_logger.models import Severity
-
-# TODO: Event categories - https://www.elastic.co/guide/en/ecs/current/ecs-allowed-values-event-category.html  # noqa E501
-CATEGORY_DATABASE = "database"
-CATEGORY_PROCESS = "process"
-CATEGORY_WEB = "web"
 
 
-class ASIMLogger(Logger):
-    def __init__(self, *args, **kwargs):
-        super(ASIMLogger, self).__init__(*args, **kwargs)
-
-    def get_log_dict(self):
-        return BaseSchema().dump(self._base)
-
-
-class ASIMFormatterBase:
+class ASIMRootFormatter:
     def __init__(self, record):
         self.record = record
 
-    def _get_event_base(self, extra_labels={}):
-        labels = {
-            "application": getattr(settings, "DLFE_APP_NAME", None),
-            "env": self._get_environment(),
+        if not getattr(settings, "DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION", False):
+            self._replace_personally_identifiable_information()
+
+    def _replace_personally_identifiable_information(self):
+        if getattr(self.record, "request", None):
+            user = getattr(self.record.request, "user", None)
+            if user:
+                user.username = "{{USERNAME}}"
+                user.email = "{{EMAIL}}"
+                user.first_name = "{{FIRST_NAME}}"
+                user.last_name = "{{LAST_NAME}}"
+                user.password = "{{PASSWORD}}"
+
+    def get_log_dict_with_raw(self, log_dict):
+        copied_dict = log_dict.copy()
+        copied_dict["AdditionalFields"]["RawLog"] = json.dumps(self.record, default=self._to_dict)
+
+        return copied_dict
+
+    def get_log_dict(self):
+        record = self.record
+        log_time = datetime.utcfromtimestamp(record.created).isoformat()
+        log_dict = {
+            # Event fields...
+            "EventMessage": record.msg,
+            "EventCount": 1,
+            "EventStartTime": log_time,
+            "EventEndTime": log_time,
+            "EventType": record.name,
+            "EventResult": "NA",
+            "EventSeverity": self._get_event_severity(record.levelname),
+            "EventOriginalSeverity": record.levelname,
+            "EventSchema": "ProcessEvent",
+            "EventSchemaVersion": "0.1.4",
+            "ActingAppType": "Django",
+            # Other fields...
+            "AdditionalFields": {
+                "DjangoLogFormatterAsimVersion": distribution("django-log-formatter-asim").version,
+                "TraceHeaders": {},
+            },
         }
 
-        logger = (
-            ASIMLogger()
-            .event(
-                category=self._get_event_category(),
-                action=self.record.name,
-                message=self.record.getMessage(),
-                labels={
-                    **labels,
-                    **extra_labels,
-                },
-            )
-            .host(
-                architecture=platform.machine(),
-            )
-        )
+        if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
+            return self.get_log_dict_with_raw(log_dict)
 
-        return logger
+        return log_dict
 
-    def _get_event_category(self):
-        if self.record.name in ("django.request", "django.server"):
-            return CATEGORY_WEB
-        if self.record.name.startswith("django.db.backends"):
-            return CATEGORY_DATABASE
+    def _to_dict(self, object):
+        try:
+            return vars(object)
+        except TypeError:
+            return str(object)
 
-        return CATEGORY_PROCESS
-
-    def _get_environment(self):
-        return os.getenv("DJANGO_SETTINGS_MODULE") or "Unknown"
+    def _get_event_severity(self, log_level):
+        map = {
+            "DEBUG": "Informational",
+            "INFO": "Informational",
+            "WARNING": "Low",
+            "ERROR": "Medium",
+            "CRITICAL": "High",
+        }
+        return map[log_level]
 
 
-class ASIMSystemFormatter(ASIMFormatterBase):
-    def get_event(self):
-        logger_event = self._get_event_base()
+class ASIMRequestFormatter(ASIMRootFormatter):
+    def _serialize_user(self, user):
+        serialized_user = vars(user).copy()
+        if "date_joined" in serialized_user:
+            serialized_user["date_joined"] = serialized_user["date_joined"].isoformat()
 
-        return logger_event
+        return {
+            "username": serialized_user.get("username", None),
+            "email": serialized_user.get("email", None),
+            "first_name": serialized_user.get("first_name", None),
+            "last_name": serialized_user.get("last_name", None),
+            "password": serialized_user.get("password"),
+            "date_joined": serialized_user.get("date_joined"),
+            "is_active": serialized_user.get("is_active"),
+            "is_staff": serialized_user.get("is_staff"),
+            "is_superuser": serialized_user.get("is_superuser"),
+        }
 
+    def _serialize_request(self, request):
+        return {
+            "method": request.method,
+            "path": request.path,
+            "GET": dict(request.GET),
+            "POST": dict(request.POST),
+            "headers": dict(request.headers),
+            "user": self._serialize_user(request.user),
+        }
 
-class ASIMDBFormatter(ASIMFormatterBase):
-    # created for augmentation based on django.db.backends
-    def get_event(self):
-        logger_event = self._get_event_base()
+    def get_log_dict_with_raw(self, log_dict):
+        copied_dict = log_dict.copy()
+        serialized_request = self._serialize_request(self.record.request)
 
-        return logger_event
+        record_dict = vars(self.record).copy()
+        record_dict["request"] = serialized_request
+        copied_dict["AdditionalFields"]["RawLog"] = json.dumps(record_dict)
 
+        return copied_dict
 
-class ASIMRequestFormatter(ASIMFormatterBase):
-    def get_event(self):
-        zipkin_headers = getattr(
-            settings,
-            "DLFE_ZIPKIN_HEADERS",
-            ("X-B3-TraceId", "X-B3-SpanId"),
-        )
+    def get_log_dict(self):
+        log_dict = super().get_log_dict()
 
-        extra_labels = {}
+        request = self.record.request
 
-        for zipkin_header in zipkin_headers:
-            if getattr(
-                self.record.request.headers,
-                zipkin_header,
-                None,
-            ):
-                extra_labels[zipkin_header] = self.record.request.headers[
-                    zipkin_header
-                ]  # noqa E501
+        # Source fields...
+        log_dict["SrcIpAddr"] = request.headers.get("REMOTE_ADDR", None)
+        log_dict["IpAddr"] = log_dict["SrcIpAddr"]
+        log_dict["SrcPortNumber"] = request.environ.get("SERVER_PORT", None)
+        user_id, username = self._get_user_details(request)
+        log_dict["SrcUserId"] = user_id
+        log_dict["SrcUsername"] = username
 
-        logger_event = self._get_event_base(
-            extra_labels=extra_labels,
-        )
+        # Acting Application fields...
+        log_dict["HttpUserAgent"] = self._get_user_agent()
 
-        parsed_url = urlparse(self.record.request.build_absolute_uri())
-
-        ip = self._get_ip_address(self.record.request)
-
-        request_bytes = len(self.record.request.body)
-
-        logger_event.url(
-            path=parsed_url.path,
-            domain=parsed_url.hostname,
-        ).source(
-            ip=self._get_ip_address(self.record.request)
-        ).http_response(status_code=getattr(self.record, "status_code", None)).client(
-            address=ip,
-            bytes=request_bytes,
-            domain=parsed_url.hostname,
-            ip=ip,
-            port=parsed_url.port,
-        ).http_request(
-            body_bytes=request_bytes,
-            body_content=self.record.request.body,
-            method=self.record.request.method,
-        )
-
-        user_agent_string = getattr(
-            self.record.request.headers,
-            "user_agent",
-            None,
-        )
-
-        if not user_agent_string and "HTTP_USER_AGENT" in self.record.request.META:  # noqa E501
-            user_agent_string = self.record.request.META["HTTP_USER_AGENT"]
-
-        # Check for use of django-user_agents
-        if getattr(self.record.request, "user_agent", None):
-            logger_event.user_agent(
-                device={
-                    "name": self.record.request.user_agent.device.family,
-                },
-                name=self.record.request.user_agent.browser.family,
-                original=user_agent_string,
-                version=self.record.request.user_agent.browser.version_string,
-            )
-        elif user_agent_string:
-            logger_event.user_agent(
-                original=user_agent_string,
+        # Additional fields...
+        for trace_header in getattr(settings, "DLFA_TRACE_HEADERS", ("X-Amzn-Trace-Id",)):
+            log_dict["AdditionalFields"]["TraceHeaders"][trace_header] = request.headers.get(
+                trace_header, None
             )
 
-        if getattr(self.record.request, "user", None):
-            if getattr(settings, "DLFE_LOG_SENSITIVE_USER_DATA", False):
-                # Defensively check for full name due to possibility of custom user app
-                try:
-                    full_name = self.record.request.user.get_full_name()
-                except AttributeError:
-                    full_name = None
+        return log_dict
 
-                # Check user attrs to account for custom user apps
-                logger_event.user(
-                    email=getattr(self.record.request.user, "email", None),
-                    full_name=full_name,
-                    name=getattr(self.record.request.user, "username", None),
-                    id=getattr(self.record.request.user, "id", None),
-                )
+    def _get_user_details(self, request):
+        user_id = None
+        username = None
+        user = getattr(request, "user", None)
+        if user:
+            user_id = getattr(user, "id", None)
+            if user.is_anonymous:
+                username = "AnonymousUser"
             else:
-                logger_event.user(
-                    id=getattr(self.record.request.user, "id", None),
-                )
+                username = getattr(user, "username", None)
+                if not username:
+                    username = getattr(user, "email", None)
+        return user_id, username
 
-        return logger_event
+    def _get_user_agent(self):
+        request = self.record.request
+        http_user_agent = getattr(request, "user_agent", None)
+        if not http_user_agent:
+            http_user_agent = getattr(request.headers, "User-Agent", None)
+        if not http_user_agent:
+            http_user_agent = request.META.get("HTTP_USER_AGENT", None)
+        return http_user_agent
 
     def _get_ip_address(self, request):
         # Import here as ipware uses settings
@@ -181,9 +168,8 @@ class ASIMRequestFormatter(ASIMFormatterBase):
 
 
 ASIM_FORMATTERS = {
-    "root": ASIMSystemFormatter,
+    "root": ASIMRootFormatter,
     "django.request": ASIMRequestFormatter,
-    "django.db.backends": ASIMSystemFormatter,
 }
 
 
@@ -192,27 +178,10 @@ class ASIMFormatter(logging.Formatter):
         if record.name in ASIM_FORMATTERS:
             asim_formatter = ASIM_FORMATTERS[record.name]
         else:
-            asim_formatter = ASIMSystemFormatter
+            asim_formatter = ASIMRootFormatter
 
         formatter = asim_formatter(record=record)
-        logger_event = formatter.get_event()
 
-        logger_event.log(
-            level=self._get_severity(record.levelname),
-        )
-
-        log_dict = logger_event.get_log_dict()
+        log_dict = formatter.get_log_dict()
 
         return json.dumps(log_dict)
-
-    def _get_severity(self, level):
-        if level == "DEBUG":
-            return Severity.DEBUG
-        elif level == "INFO":
-            return Severity.INFO
-        elif level == "WARNING":
-            return Severity.WARNING
-        elif level == "ERROR":
-            return Severity.ERROR
-        elif level == "CRITICAL":
-            return Severity.CRITICAL
