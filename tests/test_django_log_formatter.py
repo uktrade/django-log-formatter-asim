@@ -365,5 +365,5 @@ class TestASIMFormatter:
         return logger.handlers[-1].records_list[-1]
 
     def _get_json_log_entry(self, caplog):
-        print("CAPLOG TEXT: ", caplog.text)
+        print("CAPLOG TEXT start: ", caplog.text, "CAPLOG TEXT end.")
         return json.loads(caplog.text)
