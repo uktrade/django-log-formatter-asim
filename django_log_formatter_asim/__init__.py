@@ -17,10 +17,6 @@ class ASIMRootFormatter:
         if getattr(self.record, "request", None):
             user = getattr(self.record.request, "user", None)
             if user:
-                user.username = "{{USERNAME}}"
-                user.email = "{{EMAIL}}"
-                user.first_name = "{{FIRST_NAME}}"
-                user.last_name = "{{LAST_NAME}}"
                 user.password = "{{PASSWORD}}"
 
     def get_log_dict_with_raw(self, log_dict):

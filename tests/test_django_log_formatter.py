@@ -197,17 +197,9 @@ class TestASIMFormatter:
         self._create_request_log_record(logging.getLogger("django.request"), overrides)
 
         output = self._get_json_log_entry(caplog)
-        assert output["SrcUserId"] > 0
-        assert output["SrcUsername"] == "{{USERNAME}}"
         raw_log = output["AdditionalFields"]["RawLog"]
-        assert TEST_USERNAME not in raw_log
-        assert "{{USERNAME}}" in raw_log
-        assert TEST_EMAIL not in raw_log
-        assert "{{EMAIL}}" in raw_log
-        assert TEST_FIRST_NAME not in raw_log
-        assert "{{FIRST_NAME}}" in raw_log
-        assert TEST_LAST_NAME not in raw_log
-        assert "{{LAST_NAME}}" in raw_log
+
+        assert output["SrcUserId"] > 0
         assert TEST_PASSWORD not in raw_log
         assert "{{PASSWORD}}" in raw_log
 
