@@ -193,12 +193,12 @@ class TestASIMFormatter:
         overrides = {
             "user": self._create_user(),
         }
-        
+
         self._create_request_log_record(logging.getLogger("django.request"), overrides)
 
         output = self._get_json_log_entry(caplog)
         raw_log = output["AdditionalFields"]["RawLog"]
-        
+
         assert output["SrcUserId"] > 0
         assert TEST_PASSWORD not in raw_log
         assert "{{PASSWORD}}" in raw_log
