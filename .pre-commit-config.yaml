@@ -11,6 +11,8 @@ repos:
         name: Replace line endings
       - id: detect-private-key
         name: Detect private keys
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
   - repo: https://github.com/myint/autoflake.git
     rev: v2.2.0
     hooks:
