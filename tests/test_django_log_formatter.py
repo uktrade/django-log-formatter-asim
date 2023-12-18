@@ -52,7 +52,8 @@ class TestASIMFormatter:
     )
     @freeze_time("2023-10-17 07:15:30")
     def test_system_formatter_logs_correct_fields(self, logger_name, caplog):
-        logging.getLogger(logger_name).debug("Test log message")
+        message_content = "testing 123"
+        logging.getLogger(logger_name).debug("Test log message: %s", message_content)
 
         output = self._get_json_log_entry(caplog)
         self._assert_base_fields(
@@ -287,7 +288,7 @@ class TestASIMFormatter:
 
     def _assert_base_fields(self, expected_log_time, logger_name, output):
         # Event fields...
-        assert output["EventMessage"] == "Test log message"
+        assert output["EventMessage"] == "Test log message: testing 123"
         assert output["EventCount"] == 1
         assert output["EventStartTime"] == expected_log_time
         assert output["EventEndTime"] == expected_log_time
@@ -347,8 +348,10 @@ class TestASIMFormatter:
     def _create_request_log_record(self, logger, overrides={}):
         request = self._create_request(overrides=overrides)
         logger.addHandler(TestHandler(records_list=[]))
+        message_content = "testing 123"
         logger.debug(
-            msg="Test log message",
+            "Test log message: %s", 
+            message_content,
             extra={
                 "request": request,
             },
