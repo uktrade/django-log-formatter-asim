@@ -30,7 +30,7 @@ class ASIMRootFormatter:
         log_time = datetime.utcfromtimestamp(record.created).isoformat()
         log_dict = {
             # Event fields...
-            "EventMessage": record.msg,
+            "EventMessage": record.getMessage(),
             "EventCount": 1,
             "EventStartTime": log_time,
             "EventEndTime": log_time,
