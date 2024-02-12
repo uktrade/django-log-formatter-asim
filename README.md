@@ -45,7 +45,7 @@ LOGGING = {
     },
 }
 ```
-In this example we assign the asim formatter to a handler and ensure both root and django loggers use this handler. The django logger is set to propagate `False`, to avoid duplicating logs at root level. 
+In this example we assign the ASIM formatter to a `handler` and ensure both `root` and `django` loggers use this `handler`. We then set `propagate` to `False` on the `django` logger, to avoid duplicating logs at the root level. 
 
 ## Dependencies
 
