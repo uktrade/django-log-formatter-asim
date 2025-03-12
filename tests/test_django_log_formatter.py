@@ -1,6 +1,7 @@
 import json
 import logging
 from importlib.metadata import distribution
+from unittest.mock import patch, MagicMock
 
 import pytest
 from django.conf import settings
@@ -222,6 +223,22 @@ class TestASIMFormatter:
         assert TEST_EMAIL in raw_log
         assert TEST_FIRST_NAME in raw_log
         assert TEST_LAST_NAME in raw_log
+
+    @patch("ddtrace.trace.tracer.current_span")
+    def test_logs_log_datadog_required_values(self, mock_ddtrace_span, caplog):
+        mock_ddtrace_span_response = MagicMock()
+        mock_ddtrace_span_response.trace_id = 5735492756521486600
+        mock_ddtrace_span_response.span_id = 12448338029536640280
+        mock_ddtrace_span.return_value = mock_ddtrace_span_response
+
+        self._create_request_log_record(logging.getLogger("django.request"))
+
+        output = self._get_json_log_entry(caplog)
+        assert output["service"] == "django-service"
+        assert output["env"] == "test"
+        assert output["version"] == "1.0.0"
+        assert output["dd.trace_id"] == "5735492756521486600"
+        assert output["dd.span_id"] == "12448338029536640280"
 
     def test_logs_anonymous_user_when_no_user_logged_in(self, caplog):
         from django.contrib.auth.models import AnonymousUser

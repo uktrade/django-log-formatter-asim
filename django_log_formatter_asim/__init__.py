@@ -3,6 +3,8 @@ import logging
 from datetime import datetime
 from importlib.metadata import distribution
 
+import ddtrace
+from ddtrace.trace import tracer
 from django.conf import settings
 
 
@@ -24,6 +26,25 @@ class ASIMRootFormatter:
         copied_dict["AdditionalFields"]["RawLog"] = json.dumps(self.record, default=self._to_dict)
 
         return copied_dict
+
+    def _datadog_trace_dict(self):
+        event_dict = {}
+
+        span = tracer.current_span()
+        trace_id, span_id = (
+            (str((1 << 64) - 1 & span.trace_id), span.span_id) if span else (None, None)
+        )
+
+        # add ids to structlog event dictionary
+        event_dict["dd.trace_id"] = str(trace_id or 0)
+        event_dict["dd.span_id"] = str(span_id or 0)
+
+        # add the env, service, and version configured for the tracer
+        event_dict["env"] = ddtrace.config.env or ""
+        event_dict["service"] = ddtrace.config.service or ""
+        event_dict["version"] = ddtrace.config.version or ""
+
+        return event_dict
 
     def get_log_dict(self):
         record = self.record
@@ -47,6 +68,8 @@ class ASIMRootFormatter:
                 "TraceHeaders": {},
             },
         }
+
+        log_dict.update(self._datadog_trace_dict())
 
         if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
             return self.get_log_dict_with_raw(log_dict)
