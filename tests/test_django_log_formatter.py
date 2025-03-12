@@ -239,6 +239,7 @@ class TestASIMFormatter:
         assert output["version"] == "1.0.0"
         assert output["dd.trace_id"] == "5735492756521486600"
         assert output["dd.span_id"] == "12448338029536640280"
+        assert output["container_id"] == "709d1c10779d47b2a84db9eef2ebd041-0265927825"
 
     def test_logs_anonymous_user_when_no_user_logged_in(self, caplog):
         from django.contrib.auth.models import AnonymousUser
