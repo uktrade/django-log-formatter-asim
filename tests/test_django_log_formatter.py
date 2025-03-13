@@ -1,8 +1,11 @@
 import json
 import logging
+import os
+from importlib import reload
 from importlib.metadata import distribution
 from unittest.mock import patch, MagicMock
 
+import ddtrace
 import pytest
 from django.conf import settings
 from django.test import RequestFactory
@@ -225,7 +228,14 @@ class TestASIMFormatter:
         assert TEST_LAST_NAME in raw_log
 
     @patch("ddtrace.trace.tracer.current_span")
-    def test_logs_log_datadog_required_values(self, mock_ddtrace_span, caplog):
+    def test_logs_log_datadog_required_values_when_env_vars_set(
+        self, mock_ddtrace_span, caplog
+    ):
+        os.environ["DD_ENV"] = "test"
+        os.environ["DD_SERVICE"] = "django-service"
+        os.environ["DD_VERSION"] = "1.0.0"
+        reload(ddtrace)
+
         mock_ddtrace_span_response = MagicMock()
         mock_ddtrace_span_response.trace_id = 5735492756521486600
         mock_ddtrace_span_response.span_id = 12448338029536640280
@@ -237,6 +247,30 @@ class TestASIMFormatter:
         assert output["service"] == "django-service"
         assert output["env"] == "test"
         assert output["version"] == "1.0.0"
+        assert output["dd.trace_id"] == "5735492756521486600"
+        assert output["dd.span_id"] == "12448338029536640280"
+        assert output["container_id"] == "709d1c10779d47b2a84db9eef2ebd041-0265927825"
+
+        os.environ.pop("DD_ENV")
+        os.environ.pop("DD_SERVICE")
+        os.environ.pop("DD_VERSION")
+        reload(ddtrace)
+
+    @patch("ddtrace.trace.tracer.current_span")
+    def test_logs_log_datadog_required_values_when_env_vars_not_set(
+        self, mock_ddtrace_span, caplog
+    ):
+        mock_ddtrace_span_response = MagicMock()
+        mock_ddtrace_span_response.trace_id = 5735492756521486600
+        mock_ddtrace_span_response.span_id = 12448338029536640280
+        mock_ddtrace_span.return_value = mock_ddtrace_span_response
+
+        self._create_request_log_record(logging.getLogger("django.request"))
+
+        output = self._get_json_log_entry(caplog)
+        assert output["service"] == ""
+        assert output["env"] == ""
+        assert output["version"] == ""
         assert output["dd.trace_id"] == "5735492756521486600"
         assert output["dd.span_id"] == "12448338029536640280"
         assert output["container_id"] == "709d1c10779d47b2a84db9eef2ebd041-0265927825"
