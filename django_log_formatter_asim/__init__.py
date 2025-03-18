@@ -2,7 +2,10 @@ import json
 import logging
 from datetime import datetime
 from importlib.metadata import distribution
+import os
 
+import ddtrace
+from ddtrace.trace import tracer
 from django.conf import settings
 
 
@@ -24,6 +27,46 @@ class ASIMRootFormatter:
         copied_dict["AdditionalFields"]["RawLog"] = json.dumps(self.record, default=self._to_dict)
 
         return copied_dict
+
+    def _get_container_id(self):
+        """
+        The dockerId (container Id) is available via the metadata endpoint. However, it looks like it is embedded in the
+        metadata URL e.g.:
+        ECS_CONTAINER_METADATA_URI=http://169.254.170.2/v3/709d1c10779d47b2a84db9eef2ebd041-0265927825
+        See: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4-response.html
+        """
+
+        try:
+            return os.environ["ECS_CONTAINER_METADATA_URI"].split("/")[-1]
+        except (KeyError, IndexError):
+            return ""
+
+    def _get_first_64_bits_of(self, trace_id):
+        # See https://docs.datadoghq.com/tracing/other_telemetry/connect_logs_and_traces/python/#no-standard-library-logging
+        return str((1 << 64) - 1 & trace_id)
+
+    def _datadog_trace_dict(self):
+        event_dict = {}
+
+        span = tracer.current_span()
+        trace_id, span_id = (
+            (self._get_first_64_bits_of(span.trace_id), span.span_id)
+            if span
+            else (None, None)
+        )
+
+        # add ids to structlog event dictionary
+        event_dict["dd.trace_id"] = str(trace_id or 0)
+        event_dict["dd.span_id"] = str(span_id or 0)
+
+        # add the env, service, and version configured for the tracer
+        event_dict["env"] = ddtrace.config.env or ""
+        event_dict["service"] = ddtrace.config.service or ""
+        event_dict["version"] = ddtrace.config.version or ""
+
+        event_dict["container_id"] = self._get_container_id()
+
+        return event_dict
 
     def get_log_dict(self):
         record = self.record
@@ -47,6 +90,8 @@ class ASIMRootFormatter:
                 "TraceHeaders": {},
             },
         }
+
+        log_dict.update(self._datadog_trace_dict())
 
         if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
             return self.get_log_dict_with_raw(log_dict)
