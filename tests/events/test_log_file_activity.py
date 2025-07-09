@@ -1,0 +1,199 @@
+import datetime
+from collections import namedtuple
+
+import pytest
+from common_events import CommonEvents
+from freezegun import freeze_time
+
+from django_log_formatter_asim.events import log_file_activity
+
+
+class TestLogFileActivity(CommonEvents):
+    def test_specifying_all_fields(self, wsgi_request, capsys):
+        log_file_activity(
+            wsgi_request,
+            event=log_file_activity.Event.FileAccessed,
+            result=log_file_activity.Result.Success,
+            result_details="Really top notch GetObject",
+            severity=log_file_activity.Severity.Low,
+            time_generated=datetime.datetime(2025, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
+            message="Billy tried real hard to get in, but his fishy features werent recognised",
+            user={
+                "username": "Billy-the-fish",
+            },
+            server={"hostname": "BigServer", "ip_address": "127.0.0.1"},
+            client={"ip_address": "192.168.1.100"},
+            file={
+                "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
+                "name": "file.txt",
+                "extension": "txt",
+                "content_type": "plain/text",
+                "sha256": "e81bb824c4a09a811af17deae22f22dd2e1ec8cbb00b22629d2899f7c68da274",
+                "size": 111,
+            },
+        )
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+
+        # ASIM CommonFields
+        assert structured_log_entry["EventSchema"] == "FileEvent"
+        assert structured_log_entry["EventSchemaVersion"] == "0.2.1"
+        assert structured_log_entry["EventType"] == "FileAccessed"
+        assert structured_log_entry["EventResult"] == "Success"
+        assert structured_log_entry["EventCreated"] == "2025-01-02T03:04:05+00:00"
+        assert structured_log_entry["DvcHostname"] == "BigServer"
+        assert structured_log_entry["DvcIpAddr"] == "127.0.0.1"
+        assert structured_log_entry["EventSeverity"] == "Low"
+        assert (
+            structured_log_entry["EventMessage"]
+            == "Billy tried real hard to get in, but his fishy features werent recognised"
+        )
+        assert structured_log_entry["SrcIpAddr"] == "192.168.1.100"
+        assert structured_log_entry["EventResultDetails"] == "Really top notch GetObject"
+
+        # ASIM FileEvent Specific Fields
+        assert structured_log_entry["ActorUsername"] == "Billy-the-fish"
+        assert structured_log_entry["TargetFilePath"] == "s3-1234.bucket.amazon.com/dir1/file.txt"
+        assert structured_log_entry["TargetFileName"] == "file.txt"
+        assert structured_log_entry["TargetFileExtension"] == "txt"
+        assert structured_log_entry["TargetFileMimeType"] == "plain/text"
+        assert (
+            structured_log_entry["TargetFileSHA256"]
+            == "e81bb824c4a09a811af17deae22f22dd2e1ec8cbb00b22629d2899f7c68da274"
+        )
+        assert structured_log_entry["TargetFileSize"] == 111
+
+    @freeze_time("2025-07-02 08:15:20")
+    def test_populates_logs_from_current_time_and_request_varaible(self, wsgi_request, capsys):
+        log_file_activity(
+            wsgi_request,
+            event=log_file_activity.Event.FileCreated,
+            result=log_file_activity.Result.Success,
+            file={
+                "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
+                "name": "file.txt",
+                "extension": "txt",
+                "content_type": "plain/text",
+                "sha256": "e81bb824c4a09a811af17deae22f22dd2e1ec8cbb00b22629d2899f7c68da274",
+                "size": 111,
+            },
+        )
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+
+        assert structured_log_entry["EventCreated"] == "2025-07-02T08:15:20+00:00"
+        assert structured_log_entry["DvcHostname"] == "WebServer.local"
+        assert structured_log_entry["SrcIpAddr"] == "192.168.1.101"
+        assert structured_log_entry["ActorUsername"] == "Adrian"
+
+    @pytest.mark.parametrize(
+        "event_result, expected_event_severity",
+        [
+            ("Success", "Informational"),
+            ("Failure", "Medium"),
+            ("Partial", "Medium"),
+            ("NA", "Medium"),
+        ],
+    )
+    def test_sets_event_severity_based_on_result(
+        self, wsgi_request, capsys, event_result, expected_event_severity
+    ):
+        log_file_activity(
+            wsgi_request,
+            event=log_file_activity.Event.FileCreated,
+            result=event_result,
+            file={
+                "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
+            },
+        )
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+
+        assert structured_log_entry["EventSeverity"] == expected_event_severity
+
+    @pytest.mark.parametrize(
+        "filepath, expected_filename, expected_extension",
+        [
+            ("s3-1234.bucket.amazon.com/dir1/file.txt", "file.txt", "txt"),
+            ("C:/Windows/System32/KERNEL32.DLL", "KERNEL32.DLL", "DLL"),
+            ("ftp://127.0.0.1/Documents/secrets.xml", "secrets.xml", "xml"),
+            (".env", ".env", None),
+            ("/etc/passwd", "passwd", None),
+            ("/opt/pooma.tar.bz2", "pooma.tar.bz2", "tar.bz2"),
+        ],
+    )
+    def test_calculates_filename_and_extension_when_not_provided(
+        self, wsgi_request, capsys, filepath, expected_filename, expected_extension
+    ):
+        log_file_activity(
+            wsgi_request,
+            event=log_file_activity.Event.FileCreated,
+            result=log_file_activity.Result.Success,
+            file={
+                "path": filepath,
+            },
+        )
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+
+        assert structured_log_entry["TargetFileName"] == expected_filename
+        if expected_extension is None:
+            assert "TargetFileExtension" not in structured_log_entry
+        else:
+            assert structured_log_entry["TargetFileExtension"] == expected_extension
+
+    def test_does_not_populate_fields_which_are_not_provided(self, capsys):
+        wsgi_request = namedtuple("Request", ["environ", "user", "session"])(
+            {"REMOTE_ADDR": "192.168.1.101", "SERVER_NAME": "WebServer.local"},
+            namedtuple("User", ["username"])(None),
+            namedtuple("Session", ["session_key"])(None),
+        )
+
+        log_file_activity(
+            wsgi_request,
+            event=log_file_activity.Event.FileCreated,
+            result=log_file_activity.Result.Success,
+            file={
+                "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
+            },
+        )
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+
+        assert "ActorUsername" not in structured_log_entry
+        assert "DvcIpAddr" not in structured_log_entry
+        assert "EventMessage" not in structured_log_entry
+        assert "EventResultDetails" not in structured_log_entry
+
+        assert "TargetFileMimeType" not in structured_log_entry
+        assert "TargetFileSHA256" not in structured_log_entry
+        assert "TargetFileSize" not in structured_log_entry
+
+    def test_populates_fields_which_are_provided_as_none(self, wsgi_request, capsys):
+        log_file_activity(
+            wsgi_request,
+            event=log_file_activity.Event.FileCreated,
+            result=log_file_activity.Result.Success,
+            file={
+                "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
+            },
+            user={"username": None},
+            server={"hostname": None},
+            client={"ip_address": None},
+        )
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+
+        assert structured_log_entry["ActorUsername"] is None
+        assert structured_log_entry["DvcHostname"] is None
+        assert structured_log_entry["SrcIpAddr"] is None
+
+    def generate_event(self, wsgi_request):
+        log_file_activity(
+            wsgi_request,
+            event=log_file_activity.Event.FileCreated,
+            result=log_file_activity.Result.Success,
+            file={
+                "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
+            },
+        )
