@@ -7,17 +7,16 @@ from typing import TypedDict
 
 from django.http import HttpRequest
 
+from .common import Client
+from .common import Result
+from .common import Server
+from .common import Severity
+from .common import _default_severity
+
 
 class AuthenticationEvent(str, Enum):
     Logon = "Logon"
     Logoff = "Logoff"
-
-
-class AuthenticationResult(str, Enum):
-    Success = "Success"
-    Partial = "Partial"
-    Failure = "Failure"
-    NA = "NA"
 
 
 class AuthenticationLoginMethod(str, Enum):
@@ -25,34 +24,6 @@ class AuthenticationLoginMethod(str, Enum):
     StaffSSO = "Staff-SSO"
     UKGOVSSO = "UK.GOV-SSO"
     ExternalIDP = "External IdP"
-
-
-class Severity(str, Enum):
-    Informational = "Informational"
-    Low = "Low"
-    Medium = "Medium"
-    High = "High"
-
-
-class AuthenticationServer(TypedDict):
-    """Dictionary to represent properties of the HTTP Server."""
-
-    """
-    A unique identifier for the server which serviced the Authentication event.
-
-    Defaults to the WSGI SERVER_NAME field if not provided.
-    """
-    hostname: Optional[str]
-    """Internet Protocol Address of the server serving this request."""
-    ip_address: Optional[str]
-
-
-class AuthenticationClient(TypedDict):
-    """Dictionary to represent properties of the HTTP Client."""
-
-    """Internet Protocol Address of the client making the Authentication
-    event."""
-    ip_address: Optional[str]
 
 
 class AuthenticationUser(TypedDict):
@@ -89,11 +60,11 @@ class AuthenticationUser(TypedDict):
 def log_authentication(
     request: HttpRequest,
     event: AuthenticationEvent,
-    result: AuthenticationResult,
+    result: Result,
     login_method: AuthenticationLoginMethod,
     user: Optional[AuthenticationUser] = None,
-    server: Optional[AuthenticationServer] = None,
-    client: Optional[AuthenticationClient] = None,
+    server: Optional[Server] = None,
+    client: Optional[Client] = None,
     severity: Optional[Severity] = None,
     time_generated: Optional[datetime.datetime] = None,
     result_details: Optional[str] = None,
@@ -118,9 +89,9 @@ def log_authentication(
     :param user: Dictionary containing information on the subject of this Authentication event
                  see AuthenticationUser class for more details.
     :param server: Dictionary containing information on the server servicing this Authentication event
-                   see AuthenticationServer class for more details.
+                   see Server class for more details.
     :param client: Dictionary containing information on the client performing this Authentication event
-                   see AuthenticationClient class for more details.
+                   see Client class for more details.
     :param severity: Optional severity of the event, defaults to "Informational", otherwise one of:
                         - "Informational"
                         - "Low"
@@ -189,24 +160,20 @@ def log_authentication(
 
 
 log_authentication.Event = AuthenticationEvent
-log_authentication.Result = AuthenticationResult
+log_authentication.Result = Result
 log_authentication.LoginMethod = AuthenticationLoginMethod
 log_authentication.Severity = Severity
 
 
-def _default_severity(result: AuthenticationResult) -> Severity:
-    return Severity.Informational if result == AuthenticationResult.Success else Severity.Medium
-
-
-def _event_code(event: AuthenticationEvent, result: AuthenticationResult) -> str:
+def _event_code(event: AuthenticationEvent, result: Result) -> str:
     if event == AuthenticationEvent.Logon:
-        if result == log_authentication.Result.Success:
+        if result == Result.Success:
             return "001a"
-        elif result == AuthenticationResult.Failure:
+        elif result == Result.Failure:
             return "001b"
     elif event == AuthenticationEvent.Logoff:
-        if result == AuthenticationResult.Success:
+        if result == Result.Success:
             return "001c"
-        elif result == AuthenticationResult.Failure:
+        elif result == Result.Failure:
             return "001d"
     return "001"
