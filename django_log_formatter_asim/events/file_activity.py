@@ -12,6 +12,7 @@ from .common import Result
 from .common import Server
 from .common import Severity
 from .common import _default_severity
+from .common import _get_client_ip_address
 
 
 class FileActivityEvent(str, Enum):
@@ -167,13 +168,13 @@ def log_file_activity(
 
     if "hostname" in server:
         log["DvcHostname"] = server["hostname"]
-    elif hasattr(request, "environ") and "SERVER_NAME" in request.environ:
-        log["DvcHostname"] = request.environ["SERVER_NAME"]
+    elif "SERVER_NAME" in request.META:
+        log["DvcHostname"] = request.META["SERVER_NAME"]
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
-    elif hasattr(request, "environ") and "REMOTE_ADDR" in request.environ:
-        log["SrcIpAddr"] = request.environ.get("REMOTE_ADDR")
+    elif client_ip := _get_client_ip_address(request):
+        log["SrcIpAddr"] = client_ip
 
     if "username" in user:
         log["ActorUsername"] = user["username"]

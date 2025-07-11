@@ -123,7 +123,7 @@ class TestLogAuthentication(CommonEvents):
         assert structured_log_entry["EventSeverity"] == expected_event_severity
 
     def test_authentication_does_not_populate_fields_which_are_not_provided(self, capsys):
-        wsgi_request = namedtuple("Request", ["environ", "user", "session"])(
+        wsgi_request = namedtuple("Request", ["META", "user", "session"])(
             {"REMOTE_ADDR": "192.168.1.101", "SERVER_NAME": "WebServer.local"},
             namedtuple("User", ["username"])(None),
             namedtuple("Session", ["session_key"])(None),
