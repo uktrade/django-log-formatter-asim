@@ -1,14 +1,14 @@
 import datetime
-import json
 from collections import namedtuple
 
 import pytest
+from common_events import CommonEvents
 from freezegun import freeze_time
 
 from django_log_formatter_asim.events import log_authentication
 
 
-class TestLogAuthentication:
+class TestLogAuthentication(CommonEvents):
     def test_authentication_specifying_all_fields(self, wsgi_request, capsys):
         log_authentication(
             wsgi_request,
@@ -145,26 +145,6 @@ class TestLogAuthentication:
         assert "EventMessage" not in structured_log_entry
         assert "EventResultDetails" not in structured_log_entry
 
-    def test_authentication_does_not_populate_request_environ_fields_when_environ_is_not_provided(
-        self, capsys
-    ):
-        wsgi_request = namedtuple("Request", ["user", "session"])(
-            namedtuple("User", ["username"])(None),
-            namedtuple("Session", ["session_key"])(None),
-        )
-
-        log_authentication(
-            wsgi_request,
-            event=log_authentication.Event.Logoff,
-            result=log_authentication.Result.Success,
-            login_method=log_authentication.LoginMethod.UsernamePassword,
-        )
-
-        structured_log_entry = self._get_structured_log_entry(capsys)
-
-        assert "DvcHostname" not in structured_log_entry
-        assert "SrcIpAddr" not in structured_log_entry
-
     def test_authentication_populates_fields_which_are_provided_as_none(self, wsgi_request, capsys):
         log_authentication(
             wsgi_request,
@@ -184,10 +164,10 @@ class TestLogAuthentication:
         assert structured_log_entry["DvcHostname"] is None
         assert structured_log_entry["SrcIpAddr"] is None
 
-    def _get_structured_log_entry(self, capsys):
-        (out, _) = capsys.readouterr()
-        self._assert_has_one_new_line_at_end_of_string(out)
-        return json.loads(out)
-
-    def _assert_has_one_new_line_at_end_of_string(self, expected):
-        assert expected.find("\n") == len(expected) - 1
+    def generate_event(self, wsgi_request):
+        log_authentication(
+            wsgi_request,
+            event=log_authentication.Event.Logoff,
+            result=log_authentication.Result.Success,
+            login_method=log_authentication.LoginMethod.UsernamePassword,
+        )
