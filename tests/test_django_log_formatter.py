@@ -61,7 +61,7 @@ class TestASIMFormatter:
 
         output = self._get_json_log_entry(caplog)
         self._assert_base_fields(
-            expected_log_time="2023-10-17T07:15:30",
+            expected_log_time="2023-10-17T07:15:30+00:00",
             logger_name=logger_name,
             output=output,
         )
@@ -78,7 +78,7 @@ class TestASIMFormatter:
 
         output = self._get_json_log_entry(caplog)
         self._assert_base_fields(
-            expected_log_time="2023-10-17T07:15:30",
+            expected_log_time="2023-10-17T07:15:30+00:00",
             logger_name=logger_name,
             output=output,
         )

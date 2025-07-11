@@ -1,8 +1,9 @@
 import json
 import logging
-from datetime import datetime
-from importlib.metadata import distribution
 import os
+from datetime import datetime
+from datetime import timezone
+from importlib.metadata import distribution
 
 import ddtrace
 from ddtrace.trace import tracer
@@ -70,7 +71,7 @@ class ASIMRootFormatter:
 
     def get_log_dict(self):
         record = self.record
-        log_time = datetime.utcfromtimestamp(record.created).isoformat()
+        log_time = datetime.fromtimestamp(record.created, timezone.utc).isoformat()
         log_dict = {
             # Event fields...
             "EventMessage": record.getMessage(),
