@@ -2,6 +2,8 @@ from enum import Enum
 from typing import Optional
 from typing import TypedDict
 
+from django.http import HttpRequest
+
 
 class Result(str, Enum):
     Success = "Success"
@@ -40,3 +42,11 @@ class Server(TypedDict):
 
 def _default_severity(result: Result) -> Severity:
     return Severity.Informational if result == Result.Success else Severity.Medium
+
+
+def _get_client_ip_address(request: HttpRequest) -> Optional[str]:
+    # Import here as ipware uses settings
+    from ipware import get_client_ip
+
+    client_ip, _ = get_client_ip(request)
+    return client_ip

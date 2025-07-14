@@ -5,8 +5,9 @@ from collections import namedtuple
 
 
 class CommonEvents(ABC):
-    def test_does_not_populate_request_environ_fields_when_environ_is_not_provided(self, capsys):
-        wsgi_request = namedtuple("Request", ["user", "session"])(
+    def test_does_not_populate_srcip_and_dvchostname_when_META_is_not_provided(self, capsys):
+        wsgi_request = namedtuple("Request", ["META", "user", "session"])(
+            {},
             namedtuple("User", ["username"])(None),
             namedtuple("Session", ["session_key"])(None),
         )

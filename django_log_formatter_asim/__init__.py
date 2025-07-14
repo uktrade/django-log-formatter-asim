@@ -201,14 +201,6 @@ class ASIMRequestFormatter(ASIMRootFormatter):
             http_user_agent = request.META.get("HTTP_USER_AGENT", None)
         return http_user_agent
 
-    def _get_ip_address(self, request):
-        # Import here as ipware uses settings
-        from ipware import get_client_ip
-
-        client_ip, is_routable = get_client_ip(request)
-        return client_ip or "Unknown"
-
-
 ASIM_FORMATTERS = {
     "root": ASIMRootFormatter,
     "django.request": ASIMRequestFormatter,
