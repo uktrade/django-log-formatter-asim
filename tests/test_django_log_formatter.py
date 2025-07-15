@@ -21,7 +21,7 @@ TEST_FIRST_NAME = "Test first name"
 TEST_PASSWORD = "mypassword123"
 
 
-class TestHandler(logging.Handler):
+class SpyLogHandler(logging.Handler):
     """A handler class which stores LogRecord entries in a list."""
 
     def __init__(self, records_list):
@@ -397,7 +397,7 @@ class TestASIMFormatter:
 
     def _create_request_log_record(self, logger, overrides={}):
         request = self._create_request(overrides=overrides)
-        logger.addHandler(TestHandler(records_list=[]))
+        logger.addHandler(SpyLogHandler(records_list=[]))
         message_content = "testing 123"
         logger.debug(
             "Test log message: %s",
