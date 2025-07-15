@@ -22,7 +22,7 @@ class TestLogFileActivity(CommonEvents):
                 "username": "Billy-the-fish",
             },
             server={"hostname": "BigServer", "ip_address": "127.0.0.1"},
-            client={"ip_address": "192.168.1.100"},
+            client={"ip_address": "192.168.1.100", "requested_url": "https://trade.gov.uk/fish"},
             file={
                 "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
                 "name": "file.txt",
@@ -44,6 +44,7 @@ class TestLogFileActivity(CommonEvents):
         assert structured_log_entry["DvcHostname"] == "BigServer"
         assert structured_log_entry["DvcIpAddr"] == "127.0.0.1"
         assert structured_log_entry["EventSeverity"] == "Low"
+        assert structured_log_entry["TargetUrl"] == "https://trade.gov.uk/fish"
         assert (
             structured_log_entry["EventMessage"]
             == "Billy tried real hard to get in, but his fishy features werent recognised"
@@ -84,6 +85,7 @@ class TestLogFileActivity(CommonEvents):
         assert structured_log_entry["EventCreated"] == "2025-07-02T08:15:20+00:00"
         assert structured_log_entry["DvcHostname"] == "WebServer.local"
         assert structured_log_entry["SrcIpAddr"] == "192.168.1.101"
+        assert structured_log_entry["TargetUrl"] == "https://WebServer.local/steel"
         assert structured_log_entry["ActorUsername"] == "Adrian"
 
     @pytest.mark.parametrize(
@@ -142,12 +144,9 @@ class TestLogFileActivity(CommonEvents):
         else:
             assert structured_log_entry["TargetFileExtension"] == expected_extension
 
-    def test_does_not_populate_fields_which_are_not_provided(self, capsys):
-        wsgi_request = namedtuple("Request", ["META", "user", "session"])(
-            {"REMOTE_ADDR": "192.168.1.101", "SERVER_NAME": "WebServer.local"},
-            namedtuple("User", ["username"])(None),
-            namedtuple("Session", ["session_key"])(None),
-        )
+    def test_does_not_populate_fields_which_are_not_provided(self, wsgi_request, capsys):
+        wsgi_request.user = namedtuple("User", ["username"])(None)
+        wsgi_request.session = namedtuple("Session", ["session_key"])(None)
 
         log_file_activity(
             wsgi_request,

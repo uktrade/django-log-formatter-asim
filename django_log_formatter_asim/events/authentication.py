@@ -79,6 +79,7 @@ def log_authentication(
                         - Django Authentication systems current username
                         - Django Session middlewares Session Key
                         - Client IP address
+                        - URL requested by the client
                         - Server hostname
     :param event: What authentication action was attempted, either "Logon" or "Logoff"
     :param result: What outcome did the action have, either "Success", "Failure", "Partial", "NA"
@@ -127,13 +128,18 @@ def log_authentication(
 
     if "hostname" in server:
         log["DvcHostname"] = server["hostname"]
-    elif "SERVER_NAME" in request.META:
-        log["DvcHostname"] = request.META["SERVER_NAME"]
+    elif "HTTP_HOST" in request.META:
+        log["DvcHostname"] = request.get_host()
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
     elif client_ip := _get_client_ip_address(request):
         log["SrcIpAddr"] = client_ip
+
+    if "requested_url" in client:
+        log["TargetUrl"] = client["requested_url"]
+    elif "HTTP_HOST" in request.META:
+        log["TargetUrl"] = request.scheme + "://" + request.get_host() + request.get_full_path()
 
     if "role" in user:
         log["ActorUserType"] = user["role"]
