@@ -19,6 +19,7 @@ class CommonEvents(ABC):
 
         structured_log_entry = self._get_structured_log_entry(capsys)
 
+        assert "TargetAppName" not in structured_log_entry
         assert "TargetUrl" not in structured_log_entry
         assert "HttpHost" not in structured_log_entry
         assert "SrcIpAddr" not in structured_log_entry

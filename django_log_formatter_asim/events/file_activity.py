@@ -172,6 +172,12 @@ def log_file_activity(
     elif "HTTP_HOST" in request.META:
         log["HttpHost"] = request.get_host()
 
+    if "service_name" in server:
+        log["TargetAppName"] = server["service_name"]
+    elif os.environ.get("COPILOT_APPLICATION_NAME") and os.environ.get("COPILOT_SERVICE_NAME"):
+        app_name = f"{os.environ['COPILOT_APPLICATION_NAME']}-{os.environ['COPILOT_SERVICE_NAME']}"
+        log["TargetAppName"] = app_name
+
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
     elif client_ip := _get_client_ip_address(request):
