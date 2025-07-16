@@ -7,6 +7,8 @@ from typing import TypedDict
 
 from django.http import HttpRequest
 
+from django_log_formatter_asim.ecs import _get_container_id
+
 from .common import Client
 from .common import Result
 from .common import Server
@@ -177,6 +179,9 @@ def log_file_activity(
     elif os.environ.get("COPILOT_APPLICATION_NAME") and os.environ.get("COPILOT_SERVICE_NAME"):
         app_name = f"{os.environ['COPILOT_APPLICATION_NAME']}-{os.environ['COPILOT_SERVICE_NAME']}"
         log["TargetAppName"] = app_name
+
+    if container_id := _get_container_id():
+        log["ContainerTaskId"] = container_id
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
