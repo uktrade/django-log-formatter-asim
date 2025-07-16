@@ -25,6 +25,8 @@ class Client(TypedDict):
     """Internet Protocol Address of the client making the Authentication
     event."""
     ip_address: Optional[str]
+    """URL requested by the client."""
+    requested_url: Optional[str]
 
 
 class Server(TypedDict):
@@ -33,7 +35,7 @@ class Server(TypedDict):
     """
     A unique identifier for the server which serviced the Authentication event.
 
-    Defaults to the WSGI SERVER_NAME field if not provided.
+    Defaults to the WSGI HTTP_HOST field if not provided.
     """
     hostname: Optional[str]
     """Internet Protocol Address of the server serving this request."""

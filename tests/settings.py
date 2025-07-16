@@ -59,3 +59,5 @@ DATABASES = {
         "NAME": "db.sqlite3",
     }
 }
+
+ALLOWED_HOSTS = ["WebServer.local"]

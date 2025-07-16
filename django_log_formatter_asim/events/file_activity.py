@@ -93,6 +93,7 @@ def log_file_activity(
                     from which the following data will be logged if available
                         - Django Authentication systems current username
                         - Client IP address
+                        - URL requested by the client
                         - Server hostname
     :param event: What File Event action was attempted, one of:
                         - FileAccessed
@@ -168,13 +169,18 @@ def log_file_activity(
 
     if "hostname" in server:
         log["DvcHostname"] = server["hostname"]
-    elif "SERVER_NAME" in request.META:
-        log["DvcHostname"] = request.META["SERVER_NAME"]
+    elif "HTTP_HOST" in request.META:
+        log["DvcHostname"] = request.get_host()
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
     elif client_ip := _get_client_ip_address(request):
         log["SrcIpAddr"] = client_ip
+
+    if "requested_url" in client:
+        log["TargetUrl"] = client["requested_url"]
+    elif "HTTP_HOST" in request.META:
+        log["TargetUrl"] = request.scheme + "://" + request.get_host() + request.get_full_path()
 
     if "username" in user:
         log["ActorUsername"] = user["username"]
