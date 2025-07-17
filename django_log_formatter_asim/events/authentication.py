@@ -80,7 +80,7 @@ def log_authentication(
                         - Django Session middlewares Session Key
                         - Client IP address
                         - URL requested by the client
-                        - Server hostname
+                        - Server domain name
     :param event: What authentication action was attempted, either "Logon" or "Logoff"
     :param result: What outcome did the action have, either "Success", "Failure", "Partial", "NA"
     :param login_method: What authentication mechanism was being used, one of:
@@ -126,10 +126,10 @@ def log_authentication(
         "EventSchemaVersion": "0.1.4",
     }
 
-    if "hostname" in server:
-        log["DvcHostname"] = server["hostname"]
+    if "domain_name" in server:
+        log["HttpHost"] = server["domain_name"]
     elif "HTTP_HOST" in request.META:
-        log["DvcHostname"] = request.get_host()
+        log["HttpHost"] = request.get_host()
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]

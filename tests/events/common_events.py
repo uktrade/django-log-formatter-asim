@@ -7,7 +7,7 @@ from django.test import RequestFactory
 
 
 class CommonEvents(ABC):
-    def test_does_not_populate_srcip_and_dvchostname_when_META_is_not_provided(self, capsys):
+    def test_does_not_populate_srcip_and_httphost_when_META_is_not_provided(self, capsys):
         request_factory = RequestFactory()
         wsgi_request = request_factory.get("/")
         wsgi_request.user = namedtuple("User", ["username"])(None)
@@ -20,7 +20,7 @@ class CommonEvents(ABC):
         structured_log_entry = self._get_structured_log_entry(capsys)
 
         assert "TargetUrl" not in structured_log_entry
-        assert "DvcHostname" not in structured_log_entry
+        assert "HttpHost" not in structured_log_entry
         assert "SrcIpAddr" not in structured_log_entry
 
     @abstractmethod

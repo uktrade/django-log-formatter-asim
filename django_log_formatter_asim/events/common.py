@@ -33,11 +33,12 @@ class Server(TypedDict):
     """Dictionary to represent properties of the HTTP Server."""
 
     """
-    A unique identifier for the server which serviced the Authentication event.
+    The FQDN that this server is listening to HTTP requests on. For example:
+        web.trade.gov.uk
 
     Defaults to the WSGI HTTP_HOST field if not provided.
     """
-    hostname: Optional[str]
+    domain_name: Optional[str]
     """Internet Protocol Address of the server serving this request."""
     ip_address: Optional[str]
 
