@@ -181,7 +181,7 @@ def log_file_activity(
         log["TargetAppName"] = app_name
 
     if container_id := _get_container_id():
-        log["ContainerTaskId"] = container_id
+        log["ContainerId"] = container_id
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
