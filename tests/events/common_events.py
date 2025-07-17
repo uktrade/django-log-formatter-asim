@@ -1,4 +1,5 @@
 import json
+import os
 from abc import ABC
 from abc import abstractmethod
 from collections import namedtuple
@@ -19,9 +20,29 @@ class CommonEvents(ABC):
 
         structured_log_entry = self._get_structured_log_entry(capsys)
 
+        assert "TargetAppName" not in structured_log_entry
         assert "TargetUrl" not in structured_log_entry
         assert "HttpHost" not in structured_log_entry
         assert "SrcIpAddr" not in structured_log_entry
+
+    def test_populates_containertaskid_when_environment_variable_available(
+        self, wsgi_request, capsys
+    ):
+        os.environ["ECS_CONTAINER_METADATA_URI"] = "http://blah/testid"
+        self.generate_event(wsgi_request)
+        del os.environ["ECS_CONTAINER_METADATA_URI"]
+        structured_log_entry = self._get_structured_log_entry(capsys)
+
+        assert structured_log_entry["ContainerTaskId"] == "testid"
+
+    def test_does_not_populate_containertaskid_when_environment_variable_not_set(
+        self, wsgi_request, capsys
+    ):
+        self.generate_event(wsgi_request)
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+
+        assert "ContainerTaskId" not in structured_log_entry
 
     @abstractmethod
     def generate_event(self, wsgi_request):

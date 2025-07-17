@@ -1,4 +1,5 @@
 import datetime
+import os
 from collections import namedtuple
 
 import pytest
@@ -21,7 +22,7 @@ class TestLogFileActivity(CommonEvents):
             user={
                 "username": "Billy-the-fish",
             },
-            server={"domain_name": "web.trade.gov.uk", "ip_address": "127.0.0.1"},
+            server={"domain_name": "web.trade.gov.uk", "ip_address": "127.0.0.1","service_name": "berry-auctions-frontend",},
             client={"ip_address": "192.168.1.100", "requested_url": "https://trade.gov.uk/fish"},
             file={
                 "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
@@ -44,6 +45,7 @@ class TestLogFileActivity(CommonEvents):
         assert structured_log_entry["HttpHost"] == "web.trade.gov.uk"
         assert structured_log_entry["DvcIpAddr"] == "127.0.0.1"
         assert structured_log_entry["EventSeverity"] == "Low"
+        assert structured_log_entry["TargetAppName"] == "berry-auctions-frontend"
         assert structured_log_entry["TargetUrl"] == "https://trade.gov.uk/fish"
         assert (
             structured_log_entry["EventMessage"]
@@ -66,6 +68,8 @@ class TestLogFileActivity(CommonEvents):
 
     @freeze_time("2025-07-02 08:15:20")
     def test_populates_logs_from_current_time_and_request_varaible(self, wsgi_request, capsys):
+        os.environ["COPILOT_APPLICATION_NAME"] = "export-analytics"
+        os.environ["COPILOT_SERVICE_NAME"] = "frontend"
         log_file_activity(
             wsgi_request,
             event=log_file_activity.Event.FileCreated,
@@ -79,12 +83,15 @@ class TestLogFileActivity(CommonEvents):
                 "size": 111,
             },
         )
+        del os.environ["COPILOT_APPLICATION_NAME"]
+        del os.environ["COPILOT_SERVICE_NAME"]
 
         structured_log_entry = self._get_structured_log_entry(capsys)
 
         assert structured_log_entry["EventCreated"] == "2025-07-02T08:15:20+00:00"
         assert structured_log_entry["HttpHost"] == "WebServer.local"
         assert structured_log_entry["SrcIpAddr"] == "192.168.1.101"
+        assert structured_log_entry["TargetAppName"] == "export-analytics-frontend"
         assert structured_log_entry["TargetUrl"] == "https://WebServer.local/steel"
         assert structured_log_entry["ActorUsername"] == "Adrian"
 
@@ -161,6 +168,7 @@ class TestLogFileActivity(CommonEvents):
 
         assert "ActorUsername" not in structured_log_entry
         assert "DvcIpAddr" not in structured_log_entry
+        assert "TargetAppName" not in structured_log_entry
         assert "EventMessage" not in structured_log_entry
         assert "EventResultDetails" not in structured_log_entry
 
@@ -177,7 +185,7 @@ class TestLogFileActivity(CommonEvents):
                 "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
             },
             user={"username": None},
-            server={"domain_name": None},
+            server={"domain_name": None, "service_name": None},
             client={"ip_address": None},
         )
 
@@ -186,6 +194,7 @@ class TestLogFileActivity(CommonEvents):
         assert structured_log_entry["ActorUsername"] is None
         assert structured_log_entry["HttpHost"] is None
         assert structured_log_entry["SrcIpAddr"] is None
+        assert structured_log_entry["TargetAppName"] is None
 
     def generate_event(self, wsgi_request):
         log_file_activity(

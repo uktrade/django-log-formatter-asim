@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from datetime import datetime
 from datetime import timezone
 from importlib.metadata import distribution
@@ -8,6 +7,8 @@ from importlib.metadata import distribution
 import ddtrace
 from ddtrace.trace import tracer
 from django.conf import settings
+
+from .ecs import _get_container_id
 
 
 class ASIMRootFormatter:
@@ -28,19 +29,6 @@ class ASIMRootFormatter:
         copied_dict["AdditionalFields"]["RawLog"] = json.dumps(self.record, default=self._to_dict)
 
         return copied_dict
-
-    def _get_container_id(self):
-        """
-        The dockerId (container Id) is available via the metadata endpoint. However, it looks like it is embedded in the
-        metadata URL e.g.:
-        ECS_CONTAINER_METADATA_URI=http://169.254.170.2/v3/709d1c10779d47b2a84db9eef2ebd041-0265927825
-        See: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4-response.html
-        """
-
-        try:
-            return os.environ["ECS_CONTAINER_METADATA_URI"].split("/")[-1]
-        except (KeyError, IndexError):
-            return ""
 
     def _get_first_64_bits_of(self, trace_id):
         # See https://docs.datadoghq.com/tracing/other_telemetry/connect_logs_and_traces/python/#no-standard-library-logging
@@ -65,7 +53,7 @@ class ASIMRootFormatter:
         event_dict["service"] = ddtrace.config.service or ""
         event_dict["version"] = ddtrace.config.version or ""
 
-        event_dict["container_id"] = self._get_container_id()
+        event_dict["container_id"] = _get_container_id()
 
         return event_dict
 

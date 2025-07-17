@@ -41,6 +41,14 @@ class Server(TypedDict):
     domain_name: Optional[str]
     """Internet Protocol Address of the server serving this request."""
     ip_address: Optional[str]
+    """
+    A unique (within DBT) identifier for the software running on the server.
+    For example: berry-auctions-frontend
+
+    Defaults to combining the environment variables COPILOT_APPLICATION_NAME and
+    COPILOT_SERVICE_NAME separated by a '-'.
+    """
+    service_name: Optional[str]
 
 
 def _default_severity(result: Result) -> Severity:
