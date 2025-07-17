@@ -21,7 +21,7 @@ class TestLogFileActivity(CommonEvents):
             user={
                 "username": "Billy-the-fish",
             },
-            server={"hostname": "BigServer", "ip_address": "127.0.0.1"},
+            server={"domain_name": "web.trade.gov.uk", "ip_address": "127.0.0.1"},
             client={"ip_address": "192.168.1.100", "requested_url": "https://trade.gov.uk/fish"},
             file={
                 "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
@@ -41,7 +41,7 @@ class TestLogFileActivity(CommonEvents):
         assert structured_log_entry["EventType"] == "FileAccessed"
         assert structured_log_entry["EventResult"] == "Success"
         assert structured_log_entry["EventCreated"] == "2025-01-02T03:04:05+00:00"
-        assert structured_log_entry["DvcHostname"] == "BigServer"
+        assert structured_log_entry["HttpHost"] == "web.trade.gov.uk"
         assert structured_log_entry["DvcIpAddr"] == "127.0.0.1"
         assert structured_log_entry["EventSeverity"] == "Low"
         assert structured_log_entry["TargetUrl"] == "https://trade.gov.uk/fish"
@@ -83,7 +83,7 @@ class TestLogFileActivity(CommonEvents):
         structured_log_entry = self._get_structured_log_entry(capsys)
 
         assert structured_log_entry["EventCreated"] == "2025-07-02T08:15:20+00:00"
-        assert structured_log_entry["DvcHostname"] == "WebServer.local"
+        assert structured_log_entry["HttpHost"] == "WebServer.local"
         assert structured_log_entry["SrcIpAddr"] == "192.168.1.101"
         assert structured_log_entry["TargetUrl"] == "https://WebServer.local/steel"
         assert structured_log_entry["ActorUsername"] == "Adrian"
@@ -177,14 +177,14 @@ class TestLogFileActivity(CommonEvents):
                 "path": "s3-1234.bucket.amazon.com/dir1/file.txt",
             },
             user={"username": None},
-            server={"hostname": None},
+            server={"domain_name": None},
             client={"ip_address": None},
         )
 
         structured_log_entry = self._get_structured_log_entry(capsys)
 
         assert structured_log_entry["ActorUsername"] is None
-        assert structured_log_entry["DvcHostname"] is None
+        assert structured_log_entry["HttpHost"] is None
         assert structured_log_entry["SrcIpAddr"] is None
 
     def generate_event(self, wsgi_request):

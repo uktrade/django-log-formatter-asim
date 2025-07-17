@@ -20,7 +20,7 @@ class TestLogAuthentication(CommonEvents):
                 "role": "Administrator",
                 "sessionId": "abc123",
             },
-            server={"hostname": "BigServer", "ip_address": "127.0.0.1"},
+            server={"domain_name": "web.trade.gov.uk", "ip_address": "127.0.0.1"},
             client={"ip_address": "192.168.1.100", "requested_url": "https://trade.gov.uk/fish"},
             severity=log_authentication.Severity.Low,
             time_generated=datetime.datetime(2025, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
@@ -36,7 +36,7 @@ class TestLogAuthentication(CommonEvents):
         assert structured_log_entry["EventType"] == "Logon"
         assert structured_log_entry["EventResult"] == "Failure"
         assert structured_log_entry["EventCreated"] == "2025-01-02T03:04:05+00:00"
-        assert structured_log_entry["DvcHostname"] == "BigServer"
+        assert structured_log_entry["HttpHost"] == "web.trade.gov.uk"
         assert structured_log_entry["DvcIpAddr"] == "127.0.0.1"
         assert structured_log_entry["EventSeverity"] == "Low"
         assert structured_log_entry["TargetUrl"] == "https://trade.gov.uk/fish"
@@ -95,7 +95,7 @@ class TestLogAuthentication(CommonEvents):
         structured_log_entry = self._get_structured_log_entry(capsys)
 
         assert structured_log_entry["EventCreated"] == "2025-07-02T08:15:20+00:00"
-        assert structured_log_entry["DvcHostname"] == "WebServer.local"
+        assert structured_log_entry["HttpHost"] == "WebServer.local"
         assert structured_log_entry["SrcIpAddr"] == "192.168.1.101"
         assert structured_log_entry["TargetUrl"] == "https://WebServer.local/steel"
         assert structured_log_entry["ActorUsername"] == "Adrian"
@@ -153,7 +153,7 @@ class TestLogAuthentication(CommonEvents):
             result=log_authentication.Result.Success,
             login_method=log_authentication.LoginMethod.UsernamePassword,
             user={"role": None, "sessionId": None, "username": None},
-            server={"hostname": None},
+            server={"domain_name": None},
             client={"ip_address": None},
         )
 
@@ -162,7 +162,7 @@ class TestLogAuthentication(CommonEvents):
         assert structured_log_entry["ActorUserType"] is None
         assert structured_log_entry["ActorSessionId"] is None
         assert structured_log_entry["ActorUsername"] is None
-        assert structured_log_entry["DvcHostname"] is None
+        assert structured_log_entry["HttpHost"] is None
         assert structured_log_entry["SrcIpAddr"] is None
 
     def generate_event(self, wsgi_request):

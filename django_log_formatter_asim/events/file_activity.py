@@ -94,7 +94,7 @@ def log_file_activity(
                         - Django Authentication systems current username
                         - Client IP address
                         - URL requested by the client
-                        - Server hostname
+                        - Server domain name
     :param event: What File Event action was attempted, one of:
                         - FileAccessed
                         - FileCreated
@@ -167,10 +167,10 @@ def log_file_activity(
     if "size" in file:
         log["TargetFileSize"] = file["size"]
 
-    if "hostname" in server:
-        log["DvcHostname"] = server["hostname"]
+    if "domain_name" in server:
+        log["HttpHost"] = server["domain_name"]
     elif "HTTP_HOST" in request.META:
-        log["DvcHostname"] = request.get_host()
+        log["HttpHost"] = request.get_host()
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
