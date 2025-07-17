@@ -25,24 +25,22 @@ class CommonEvents(ABC):
         assert "HttpHost" not in structured_log_entry
         assert "SrcIpAddr" not in structured_log_entry
 
-    def test_populates_containertaskid_when_environment_variable_available(
-        self, wsgi_request, capsys
-    ):
+    def test_populates_containerid_when_environment_variable_available(self, wsgi_request, capsys):
         os.environ["ECS_CONTAINER_METADATA_URI"] = "http://blah/testid"
         self.generate_event(wsgi_request)
         del os.environ["ECS_CONTAINER_METADATA_URI"]
         structured_log_entry = self._get_structured_log_entry(capsys)
 
-        assert structured_log_entry["ContainerTaskId"] == "testid"
+        assert structured_log_entry["ContainerId"] == "testid"
 
-    def test_does_not_populate_containertaskid_when_environment_variable_not_set(
+    def test_does_not_populate_containerid_when_environment_variable_not_set(
         self, wsgi_request, capsys
     ):
         self.generate_event(wsgi_request)
 
         structured_log_entry = self._get_structured_log_entry(capsys)
 
-        assert "ContainerTaskId" not in structured_log_entry
+        assert "ContainerId" not in structured_log_entry
 
     @abstractmethod
     def generate_event(self, wsgi_request):
