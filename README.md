@@ -4,8 +4,6 @@ The library formats Django logs in [ASIM format](https://learn.microsoft.com/en-
 
 Mapping to the format may not be complete, but best effort has been made to create logical field mappings.
 
-If you need to amend the mapping, you can implement a custom formatter.
-
 ## Installation
 
 ``` shell
@@ -14,7 +12,16 @@ pip install django-log-formatter-asim
 
 ## Usage
 
-Using in a Django logging configuration:
+This package provides the following ASIM functionality:
+
+- A Python [logging.Formatter] implementation.
+- A module of functions `django_log_formatter_asim.events` which generate ASIM event log entries.
+
+[logging.Formatter]: https://docs.python.org/3/library/logging.html#formatter-objects
+
+### `logging.Formatter` setup
+
+Using the formatter in a Django logging configuration:
 
 ``` python
 from django_log_formatter_asim import ASIMFormatter
@@ -45,15 +52,61 @@ LOGGING = {
     },
 }
 ```
-In this example we assign the ASIM formatter to a `handler` and ensure both `root` and `django` loggers use this `handler`. We then set `propagate` to `False` on the `django` logger, to avoid duplicating logs at the root level. 
 
-## Dependencies
+In this example we assign the ASIM formatter to a `handler` and ensure both `root` and `django` loggers use this `handler`.
+We then set `propagate` to `False` on the `django` logger, to avoid duplicating logs at the root level.
 
-This package uses [Django IPware](https://github.com/un33k/django-ipware) for IP address capture.
+### ASIM Events
 
-This package is compatible with [Django User Agents](https://pypi.org/project/django-user-agents) which, when used, will enhance logged user agent information.
+The events mostly follow the Microsoft schema but have been tailored to Department of Business and Trade needs.
 
-## Settings
+Events are designed for simple integrate into your Django app.
+Each will take additional information from the [Django HttpRequest object][django-request].
+
+[django-request]: https://docs.djangoproject.com/en/5.2/ref/request-response/#httprequest-objects
+
+#### Authentication event
+
+Following the [ASIM Authentication Schema](https://learn.microsoft.com/en-us/azure/sentinel/normalization-schema-authentication).
+
+```python
+# Example usage
+from django_log_formatter_asim.events import log_authentication
+
+log_authentication(
+    request,
+    event=log_authentication.Event.Logoff,
+    result=log_authentication.Result.Success,
+    login_method=log_authentication.LoginMethod.UsernamePassword,
+)
+
+# Example JSON printed to standard output
+{
+    # Values provided as arguments
+    "EventType": "Logoff",
+    "EventResult": "Success",
+    "LogonMethod": "Username & Password",
+
+    # Calculated / Hard coded fields
+    "EventStartTime": "2025-07-02T08:15:20+00:00",
+    "EventSeverity": "Informational",
+    "EventOriginalType": "001c",
+    "EventSchema": "Authentication",
+    "EventSchemaVersion": "0.1.4",
+
+    # Taken from Django HttpRequest object
+    "HttpHost": "WebServer.local",
+    "SrcIpAddr": "192.168.1.101",
+    "TargetUrl": "https://WebServer.local/steel",
+    "TargetSessionId": "def456",
+    "TargetUsername": "Adrian"
+
+    # Taken from DBT Platform environment variables
+    "TargetAppName": "export-analytics-frontend",
+}
+```
+
+### Settings
 
 `DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION` - the formatter checks this setting to see if personally identifiable information should be logged. If this is not set to true, only the user's id is logged.
 
@@ -68,7 +121,7 @@ if is_copilot():
    DLFA_TRACE_HEADERS = ("X-B3-TraceId", "X-B3-SpanId")
 ```
 
-## Formatter classes
+### Formatter classes
 
 ``` python
     ASIM_FORMATTERS = {
@@ -83,7 +136,7 @@ The default class for other loggers is:
     ASIMSystemFormatter
 ```
 
-## Creating a custom formatter
+### Creating a custom `logging.Formatter`
 
 If you wish to create your own ASIM formatter, you can inherit from ASIMSystemFormatter and call _get_event_base to get the base level logging data for use in augmentation:
 
@@ -96,6 +149,12 @@ If you wish to create your own ASIM formatter, you can inherit from ASIMSystemFo
 
             return logger_event
 ```
+
+## Dependencies
+
+This package uses [Django IPware](https://github.com/un33k/django-ipware) for IP address capture.
+
+This package is compatible with [Django User Agents](https://pypi.org/project/django-user-agents) which, when used, will enhance logged user agent information.
 
 ## Contributing to the `django-log-formatter-asim` package
 
