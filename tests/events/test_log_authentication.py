@@ -58,7 +58,11 @@ class TestLogAuthentication(CommonEvents):
         # ASIM Authentication Specific Fields
         assert structured_log_entry["LogonMethod"] == "Username & Password"
         assert structured_log_entry["TargetUsername"] == "Billy-the-fish"
-        assert structured_log_entry["TargetSessionId"] == "abc123"
+        # SHA3 512 of "abc123"
+        assert (
+            structured_log_entry["TargetSessionId"]
+            == "3274f8455be84b8c7d79f9bd93e6c8520d13f6bd2855f3bb9c006ca9f3cce25d4b924d0370f8af4e27a350fd2baeef58bc37e0f4e4a403fe64c98017fa012757"
+        )
         assert structured_log_entry["TargetUserType"] == "Administrator"
 
     @pytest.mark.parametrize(
@@ -110,7 +114,11 @@ class TestLogAuthentication(CommonEvents):
         assert structured_log_entry["TargetAppName"] == "export-analytics-frontend"
         assert structured_log_entry["TargetUrl"] == "https://WebServer.local/steel"
         assert structured_log_entry["TargetUsername"] == "Adrian"
-        assert structured_log_entry["TargetSessionId"] == "def456"
+        # SHA3 512 of "def456"
+        assert (
+            structured_log_entry["TargetSessionId"]
+            == "9d061dd7d64d42a8e2546e4b44d9ffdb6685f40e6ba0769da56586f4919ad1a1b224f45163a5eb701044b6d9fc808b6c99d0f7f911eceba56b7a177038e2a5dd"
+        )
 
     @pytest.mark.parametrize(
         "event_result, expected_event_severity",
@@ -157,6 +165,16 @@ class TestLogAuthentication(CommonEvents):
         assert "TargetAppName" not in structured_log_entry
         assert "EventMessage" not in structured_log_entry
         assert "EventResultDetails" not in structured_log_entry
+
+    def test_does_not_expect_session_property_to_exist_on_request(self, wsgi_request, capsys):
+        # If the Django SessionMiddleware has not been installed, then no session property
+        # will exist on wsgi_request.
+        del wsgi_request.session
+
+        self.generate_event(wsgi_request)
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+        assert "TargetSessionId" not in structured_log_entry
 
     def test_authentication_populates_fields_which_are_provided_as_none(self, wsgi_request, capsys):
         log_authentication(
