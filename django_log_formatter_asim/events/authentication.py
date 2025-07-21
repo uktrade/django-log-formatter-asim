@@ -119,7 +119,7 @@ def log_authentication(
     event_created = time_generated or datetime.datetime.now(tz=datetime.timezone.utc)
 
     log = {
-        "EventCreated": event_created.isoformat(),  # TODO: Should this really be EventCreated, or TimeGenerated
+        "EventStartTime": event_created.isoformat(),
         "EventSeverity": severity or _default_severity(result),
         "EventOriginalType": _event_code(event, result),
         "EventType": event,
@@ -141,7 +141,7 @@ def log_authentication(
         log["TargetAppName"] = app_name
 
     if container_id := _get_container_id():
-        log["ContainerId"] = container_id
+        log["TargetContainerId"] = container_id
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
@@ -154,17 +154,17 @@ def log_authentication(
         log["TargetUrl"] = request.scheme + "://" + request.get_host() + request.get_full_path()
 
     if "role" in user:
-        log["ActorUserType"] = user["role"]
+        log["TargetUserType"] = user["role"]
 
     if "sessionId" in user:
-        log["ActorSessionId"] = user["sessionId"]
+        log["TargetSessionId"] = user["sessionId"]
     elif request.session.session_key:
-        log["ActorSessionId"] = request.session.session_key
+        log["TargetSessionId"] = request.session.session_key
 
     if "username" in user:
-        log["ActorUsername"] = user["username"]
-    elif request.user.username:
-        log["ActorUsername"] = request.user.username
+        log["TargetUsername"] = user["username"]
+    elif hasattr(request, "user") and request.user.username:
+        log["TargetUsername"] = request.user.username
 
     if result_details:
         log["EventResultDetails"] = result_details

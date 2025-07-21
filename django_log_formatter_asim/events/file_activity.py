@@ -143,7 +143,7 @@ def log_file_activity(
         "EventSchemaVersion": "0.2.1",
         "EventType": event,
         "EventResult": result,
-        "EventCreated": event_created.isoformat(),  # TODO: Should this really be EventCreated, or TimeGenerated
+        "EventStartTime": event_created.isoformat(),
         "EventSeverity": severity or _default_severity(result),
         "TargetFilePath": file["path"],
     }
@@ -181,7 +181,7 @@ def log_file_activity(
         log["TargetAppName"] = app_name
 
     if container_id := _get_container_id():
-        log["ContainerId"] = container_id
+        log["TargetContainerId"] = container_id
 
     if "ip_address" in client:
         log["SrcIpAddr"] = client["ip_address"]
@@ -194,9 +194,9 @@ def log_file_activity(
         log["TargetUrl"] = request.scheme + "://" + request.get_host() + request.get_full_path()
 
     if "username" in user:
-        log["ActorUsername"] = user["username"]
-    elif request.user.username:
-        log["ActorUsername"] = request.user.username
+        log["TargetUsername"] = user["username"]
+    elif hasattr(request, "user") and request.user.username:
+        log["TargetUsername"] = request.user.username
 
     if result_details:
         log["EventResultDetails"] = result_details

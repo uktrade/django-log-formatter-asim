@@ -25,22 +25,34 @@ class CommonEvents(ABC):
         assert "HttpHost" not in structured_log_entry
         assert "SrcIpAddr" not in structured_log_entry
 
-    def test_populates_containerid_when_environment_variable_available(self, wsgi_request, capsys):
+    def test_populates_TargetContainerId_when_environment_variable_available(
+        self, wsgi_request, capsys
+    ):
         os.environ["ECS_CONTAINER_METADATA_URI"] = "http://blah/testid"
         self.generate_event(wsgi_request)
         del os.environ["ECS_CONTAINER_METADATA_URI"]
         structured_log_entry = self._get_structured_log_entry(capsys)
 
-        assert structured_log_entry["ContainerId"] == "testid"
+        assert structured_log_entry["TargetContainerId"] == "testid"
 
-    def test_does_not_populate_containerid_when_environment_variable_not_set(
+    def test_does_not_populate_TargetContainerId_when_environment_variable_not_set(
         self, wsgi_request, capsys
     ):
         self.generate_event(wsgi_request)
 
         structured_log_entry = self._get_structured_log_entry(capsys)
 
-        assert "ContainerId" not in structured_log_entry
+        assert "TargetContainerId" not in structured_log_entry
+
+    def test_does_not_expect_user_property_to_exist_on_request(self, wsgi_request, capsys):
+        # If the Django AuthenticationMiddleware has not been installed, then no
+        # user property will exist on wsgi_request.
+        del wsgi_request.user
+
+        self.generate_event(wsgi_request)
+
+        structured_log_entry = self._get_structured_log_entry(capsys)
+        assert "TargetUsername" not in structured_log_entry
 
     @abstractmethod
     def generate_event(self, wsgi_request):
