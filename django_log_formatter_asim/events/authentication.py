@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 from enum import Enum
+from hashlib import sha3_512
 from typing import Literal
 from typing import Optional
 from typing import TypedDict
@@ -157,9 +158,9 @@ def log_authentication(
         log["TargetUserType"] = user["role"]
 
     if "sessionId" in user:
-        log["TargetSessionId"] = user["sessionId"]
-    elif request.session.session_key:
-        log["TargetSessionId"] = request.session.session_key
+        log["TargetSessionId"] = _cryptographically_hash(user["sessionId"])
+    elif hasattr(request, "session") and request.session.session_key:
+        log["TargetSessionId"] = _cryptographically_hash(request.session.session_key)
 
     if "username" in user:
         log["TargetUsername"] = user["username"]
@@ -182,6 +183,12 @@ log_authentication.Event = AuthenticationEvent
 log_authentication.Result = Result
 log_authentication.LoginMethod = AuthenticationLoginMethod
 log_authentication.Severity = Severity
+
+
+def _cryptographically_hash(data: Optional[str]) -> Optional[str]:
+    if data is None:
+        return None
+    return sha3_512(data.encode("UTF-8")).hexdigest()
 
 
 def _event_code(event: AuthenticationEvent, result: Result) -> str:
