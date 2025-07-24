@@ -31,7 +31,7 @@ class AuthenticationLoginMethod(str, Enum):
     ExternalIDP = "External IdP"
 
 
-class AuthenticationUser(TypedDict):
+class AuthenticationUser(TypedDict, total=False):
     """Dictionary to represent properties of the users session."""
 
     """What type of role best describes this Authentication event."""
