@@ -31,14 +31,19 @@ class FileActivityEvent(str, Enum):
     FolderModified = "FolderModified"
 
 
-class FileActivityFile(TypedDict):
-    """Dictionary to represent properties of the target file."""
+class FileActivityFileBase(TypedDict):
+    """Mandatory field definitions of FileActivityFile."""
 
     """
-    The full, normalized path of the target file, including the folder or location,
-    the file name, and the extension.
+    The full, normalized path of the target file, including the folder or
+    location, the file name, and the extension.
     """
     path: str
+
+
+class FileActivityFile(FileActivityFileBase, total=False):
+    """Dictionary to represent properties of the target file."""
+
     """
     The name of the target file, without a path or a location, but with an
     extension if available. This field should be similar to the final element in
@@ -65,7 +70,7 @@ class FileActivityFile(TypedDict):
     size: Optional[int]
 
 
-class FileActivityUser(TypedDict):
+class FileActivityUser(TypedDict, total=False):
     """
     A unique identifier for the user.
 

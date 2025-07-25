@@ -19,7 +19,7 @@ class Severity(str, Enum):
     High = "High"
 
 
-class Client(TypedDict):
+class Client(TypedDict, total=False):
     """Dictionary to represent properties of the HTTP Client."""
 
     """Internet Protocol Address of the client making the Authentication
@@ -29,7 +29,7 @@ class Client(TypedDict):
     requested_url: Optional[str]
 
 
-class Server(TypedDict):
+class Server(TypedDict, total=False):
     """Dictionary to represent properties of the HTTP Server."""
 
     """
