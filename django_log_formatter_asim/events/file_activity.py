@@ -134,15 +134,35 @@ def log_file_activity(
 
     See also: https://learn.microsoft.com/en-us/azure/sentinel/normalization-schema-file-event
     """
-    if user == None:
-        user = {}
-    if server == None:
-        server = {}
-    if client == None:
-        client = {}
 
-    event_created = time_generated or datetime.datetime.now(tz=datetime.timezone.utc)
+    _log_file_activity(
+        request,
+        event,
+        result,
+        file,
+        user={} if user == None else user,
+        server={} if server == None else server,
+        client={} if client == None else client,
+        event_created=time_generated or datetime.datetime.now(tz=datetime.timezone.utc),
+        severity=severity,
+        result_details=result_details,
+        message=message,
+    )
 
+
+def _log_file_activity(
+    request: HttpRequest,
+    event: FileActivityEvent,
+    result: Result,
+    file: FileActivityFile,
+    user: FileActivityUser,
+    server: Server,
+    client: Client,
+    event_created: datetime.datetime,
+    severity: Optional[Severity] = None,
+    result_details: Optional[str] = None,
+    message: Optional[str] = None,
+):
     log = {
         "EventSchema": "FileEvent",
         "EventSchemaVersion": "0.2.1",
