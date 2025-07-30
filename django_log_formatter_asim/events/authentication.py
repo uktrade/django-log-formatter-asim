@@ -110,15 +110,35 @@ def log_authentication(
 
     See also: https://learn.microsoft.com/en-us/azure/sentinel/normalization-schema-authentication
     """
-    if user == None:
-        user = {}
-    if server == None:
-        server = {}
-    if client == None:
-        client = {}
 
-    event_created = time_generated or datetime.datetime.now(tz=datetime.timezone.utc)
+    _log_authentication(
+        request,
+        event,
+        result,
+        login_method,
+        user={} if user == None else user,
+        server={} if server == None else server,
+        client={} if client == None else client,
+        event_created=time_generated or datetime.datetime.now(tz=datetime.timezone.utc),
+        severity=severity,
+        result_details=result_details,
+        message=message,
+    )
 
+
+def _log_authentication(
+    request: HttpRequest,
+    event: AuthenticationEvent,
+    result: Result,
+    login_method: AuthenticationLoginMethod,
+    user: AuthenticationUser,
+    server: Server,
+    client: Client,
+    event_created: datetime.datetime,
+    severity: Optional[Severity] = None,
+    result_details: Optional[str] = None,
+    message: Optional[str] = None,
+):
     log = {
         "EventStartTime": event_created.isoformat(),
         "EventSeverity": severity or _default_severity(result),
