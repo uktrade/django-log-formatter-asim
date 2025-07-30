@@ -7,14 +7,11 @@ from typing import TypedDict
 
 from django.http import HttpRequest
 
-from django_log_formatter_asim.ecs import _get_container_id
-
+from .common import Activity
 from .common import Client
 from .common import Result
 from .common import Server
 from .common import Severity
-from .common import _default_severity
-from .common import _get_client_ip_address
 
 
 class FileActivityEvent(str, Enum):
@@ -81,7 +78,7 @@ class FileActivityUser(TypedDict, total=False):
     username: Optional[str]
 
 
-class LogFileActivity:
+class LogFileActivity(Activity):
     Event = FileActivityEvent
     Result = Result
     Severity = Severity
@@ -180,54 +177,22 @@ class LogFileActivity:
             "EventSchema": "FileEvent",
             "EventSchemaVersion": "0.2.1",
             "EventType": event,
-            "EventResult": result,
-            "EventStartTime": event_created.isoformat(),
-            "EventSeverity": severity or _default_severity(result),
         }
+
+        log.update(
+            self._activity_fields(
+                request, event_created, result, server, client, severity, result_details, message
+            )
+        )
 
         log.update(self._generate_file_attributes(file, "Target"))
         if source_file:
             log.update(self._generate_file_attributes(source_file, "Src"))
 
-        if "domain_name" in server:
-            log["HttpHost"] = server["domain_name"]
-        elif "HTTP_HOST" in request.META:
-            log["HttpHost"] = request.get_host()
-
-        if "service_name" in server:
-            log["TargetAppName"] = server["service_name"]
-        elif os.environ.get("COPILOT_APPLICATION_NAME") and os.environ.get("COPILOT_SERVICE_NAME"):
-            app_name = (
-                f"{os.environ['COPILOT_APPLICATION_NAME']}-{os.environ['COPILOT_SERVICE_NAME']}"
-            )
-            log["TargetAppName"] = app_name
-
-        if container_id := _get_container_id():
-            log["TargetContainerId"] = container_id
-
-        if "ip_address" in client:
-            log["SrcIpAddr"] = client["ip_address"]
-        elif client_ip := _get_client_ip_address(request):
-            log["SrcIpAddr"] = client_ip
-
-        if "requested_url" in client:
-            log["TargetUrl"] = client["requested_url"]
-        elif "HTTP_HOST" in request.META:
-            log["TargetUrl"] = request.scheme + "://" + request.get_host() + request.get_full_path()
-
         if "username" in user:
             log["TargetUsername"] = user["username"]
         elif hasattr(request, "user") and request.user.username:
             log["TargetUsername"] = request.user.username
-
-        if result_details:
-            log["EventResultDetails"] = result_details
-
-        if message:
-            log["EventMessage"] = message
-
-        if "ip_address" in server:
-            log["DvcIpAddr"] = server["ip_address"]
 
         print(json.dumps(log), flush=True)
 

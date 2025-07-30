@@ -1,6 +1,5 @@
 import datetime
 import json
-import os
 from enum import Enum
 from hashlib import sha3_512
 from typing import Literal
@@ -9,14 +8,11 @@ from typing import TypedDict
 
 from django.http import HttpRequest
 
-from django_log_formatter_asim.ecs import _get_container_id
-
+from .common import Activity
 from .common import Client
 from .common import Result
 from .common import Server
 from .common import Severity
-from .common import _default_severity
-from .common import _get_client_ip_address
 
 
 class AuthenticationEvent(str, Enum):
@@ -62,7 +58,7 @@ class AuthenticationUser(TypedDict, total=False):
     sessionId: Optional[str]
 
 
-class LogAuthentication:
+class LogAuthentication(Activity):
     Event = AuthenticationEvent
     Result = Result
     LoginMethod = AuthenticationLoginMethod
@@ -147,41 +143,18 @@ class LogAuthentication:
         message: Optional[str] = None,
     ):
         log = {
-            "EventStartTime": event_created.isoformat(),
-            "EventSeverity": severity or _default_severity(result),
             "EventOriginalType": self._event_code(event, result),
             "EventType": event,
-            "EventResult": result,
             "LogonMethod": login_method,
             "EventSchema": "Authentication",
             "EventSchemaVersion": "0.1.4",
         }
 
-        if "domain_name" in server:
-            log["HttpHost"] = server["domain_name"]
-        elif "HTTP_HOST" in request.META:
-            log["HttpHost"] = request.get_host()
-
-        if "service_name" in server:
-            log["TargetAppName"] = server["service_name"]
-        elif os.environ.get("COPILOT_APPLICATION_NAME") and os.environ.get("COPILOT_SERVICE_NAME"):
-            app_name = (
-                f"{os.environ['COPILOT_APPLICATION_NAME']}-{os.environ['COPILOT_SERVICE_NAME']}"
+        log.update(
+            self._activity_fields(
+                request, event_created, result, server, client, severity, result_details, message
             )
-            log["TargetAppName"] = app_name
-
-        if container_id := _get_container_id():
-            log["TargetContainerId"] = container_id
-
-        if "ip_address" in client:
-            log["SrcIpAddr"] = client["ip_address"]
-        elif client_ip := _get_client_ip_address(request):
-            log["SrcIpAddr"] = client_ip
-
-        if "requested_url" in client:
-            log["TargetUrl"] = client["requested_url"]
-        elif "HTTP_HOST" in request.META:
-            log["TargetUrl"] = request.scheme + "://" + request.get_host() + request.get_full_path()
+        )
 
         if "role" in user:
             log["TargetUserType"] = user["role"]
@@ -195,15 +168,6 @@ class LogAuthentication:
             log["TargetUsername"] = user["username"]
         elif hasattr(request, "user") and request.user.username:
             log["TargetUsername"] = request.user.username
-
-        if result_details:
-            log["EventResultDetails"] = result_details
-
-        if message:
-            log["EventMessage"] = message
-
-        if "ip_address" in server:
-            log["DvcIpAddr"] = server["ip_address"]
 
         print(json.dumps(log), flush=True)
 
