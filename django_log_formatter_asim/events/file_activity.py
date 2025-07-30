@@ -42,18 +42,19 @@ class FileActivityFileBase(TypedDict):
 
 
 class FileActivityFile(FileActivityFileBase, total=False):
-    """Dictionary to represent properties of the target file."""
+    """Dictionary to represent properties of either the target or source
+    file."""
 
     """
     The name of the target file, without a path or a location, but with an
     extension if available. This field should be similar to the final element in
-    the TargetFilePath field.
+    the *FilePath field.
 
     Defaults to extracting the name based off the path if not provided.
     """
     name: Optional[str]
     """
-    The target file extension.
+    The file extension.
 
     Defaults to extracting the extension based off the path if not provided.
     """
@@ -64,9 +65,9 @@ class FileActivityFile(FileActivityFileBase, total=False):
     Allowed values are listed in the IANA Media Types repository.
     """
     content_type: Optional[str]
-    """The SHA256 value of the target file."""
+    """The SHA256 value of the file."""
     sha256: Optional[str]
-    """The size of the target file in bytes."""
+    """The size of the file in bytes."""
     size: Optional[int]
 
 
@@ -85,6 +86,7 @@ def log_file_activity(
     event: FileActivityEvent,
     result: Result,
     file: FileActivityFile,
+    source_file: Optional[FileActivityFile] = None,
     user: Optional[FileActivityUser] = None,
     server: Optional[Server] = None,
     client: Optional[Client] = None,
@@ -116,7 +118,10 @@ def log_file_activity(
                         - FolderModified
     :param result: What outcome did the action have, either "Success", "Failure", "Partial", "NA"
     :param file: Dictionary containing information on the target of this File event see
-                   FileActivityFile for more details.
+                 FileActivityFile for more details.
+    :param source_file: Dictionary containing information on the source of this File event,
+                        this MUST be used for a FileRenamed, FileMoved, FileCopied, FolderMoved
+                        operation. See FileActivityFile for more details.
     :param user: Dictionary containing information on the logged in users username.
     :param server: Dictionary containing information on the server servicing this File event
                    see Server class for more details.
@@ -140,6 +145,7 @@ def log_file_activity(
         event,
         result,
         file,
+        source_file,
         user={} if user == None else user,
         server={} if server == None else server,
         client={} if client == None else client,
@@ -155,6 +161,7 @@ def _log_file_activity(
     event: FileActivityEvent,
     result: Result,
     file: FileActivityFile,
+    source_file: Optional[FileActivityFile],
     user: FileActivityUser,
     server: Server,
     client: Client,
@@ -170,29 +177,11 @@ def _log_file_activity(
         "EventResult": result,
         "EventStartTime": event_created.isoformat(),
         "EventSeverity": severity or _default_severity(result),
-        "TargetFilePath": file["path"],
     }
 
-    if "name" in file:
-        log["TargetFileName"] = file["name"]
-    else:
-        log["TargetFileName"] = os.path.basename(file["path"])
-
-    if "extension" in file:
-        log["TargetFileExtension"] = file["extension"]
-    else:
-        file_name_parts = list(filter(None, log["TargetFileName"].split(".", 1)))
-        if len(file_name_parts) > 1:
-            log["TargetFileExtension"] = file_name_parts[1]
-
-    if "content_type" in file:
-        log["TargetFileMimeType"] = file["content_type"]
-
-    if "sha256" in file:
-        log["TargetFileSHA256"] = file["sha256"]
-
-    if "size" in file:
-        log["TargetFileSize"] = file["size"]
+    log.update(_generate_file_attributes(file, "Target"))
+    if source_file:
+        log.update(_generate_file_attributes(source_file, "Src"))
 
     if "domain_name" in server:
         log["HttpHost"] = server["domain_name"]
@@ -233,6 +222,33 @@ def _log_file_activity(
         log["DvcIpAddr"] = server["ip_address"]
 
     print(json.dumps(log), flush=True)
+
+
+def _generate_file_attributes(file: FileActivityFile, prefix: str) -> dict:
+    log = {prefix + "FilePath": file["path"]}
+
+    if "name" in file:
+        log[prefix + "FileName"] = file["name"]
+    else:
+        log[prefix + "FileName"] = os.path.basename(file["path"])
+
+    if "extension" in file:
+        log[prefix + "FileExtension"] = file["extension"]
+    else:
+        file_name_parts = list(filter(None, log[prefix + "FileName"].split(".", 1)))
+        if len(file_name_parts) > 1:
+            log[prefix + "FileExtension"] = file_name_parts[1]
+
+    if "content_type" in file:
+        log[prefix + "FileMimeType"] = file["content_type"]
+
+    if "sha256" in file:
+        log[prefix + "FileSHA256"] = file["sha256"]
+
+    if "size" in file:
+        log[prefix + "FileSize"] = file["size"]
+
+    return log
 
 
 log_file_activity.Event = FileActivityEvent
