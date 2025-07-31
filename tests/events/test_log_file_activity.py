@@ -13,9 +13,9 @@ class TestLogFileActivity(CommonEvents):
     def test_specifying_all_fields(self, wsgi_request, capsys):
         log_file_activity(
             wsgi_request,
-            event=log_file_activity.Event.FileAccessed,
+            event=log_file_activity.Event.FileCopied,
             result=log_file_activity.Result.Success,
-            result_details="Really top notch GetObject",
+            result_details="Really top notch CopyObject",
             severity=log_file_activity.Severity.Low,
             time_generated=datetime.datetime(2025, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
             message="Billy tried real hard to get in, but his fishy features werent recognised",
@@ -36,6 +36,14 @@ class TestLogFileActivity(CommonEvents):
                 "sha256": "e81bb824c4a09a811af17deae22f22dd2e1ec8cbb00b22629d2899f7c68da274",
                 "size": 111,
             },
+            source_file={
+                "path": "s3-abcd.bucket.amazon.com/dir2/file.exe",
+                "name": "file.exe",
+                "extenson": "exe",
+                "content_type": "application/vnd.microsoft.portable-executable",
+                "sha256": "e81bb824c4a09a811af17deae22f22dd2e1ec8cbb00b22629d2899f7c68da274",
+                "size": 111,
+            },
         )
 
         structured_log_entry = self._get_structured_log_entry(capsys)
@@ -43,7 +51,7 @@ class TestLogFileActivity(CommonEvents):
         # ASIM CommonFields
         assert structured_log_entry["EventSchema"] == "FileEvent"
         assert structured_log_entry["EventSchemaVersion"] == "0.2.1"
-        assert structured_log_entry["EventType"] == "FileAccessed"
+        assert structured_log_entry["EventType"] == "FileCopied"
         assert structured_log_entry["EventResult"] == "Success"
         assert structured_log_entry["EventStartTime"] == "2025-01-02T03:04:05+00:00"
         assert structured_log_entry["HttpHost"] == "web.trade.gov.uk"
@@ -56,7 +64,7 @@ class TestLogFileActivity(CommonEvents):
             == "Billy tried real hard to get in, but his fishy features werent recognised"
         )
         assert structured_log_entry["SrcIpAddr"] == "192.168.1.100"
-        assert structured_log_entry["EventResultDetails"] == "Really top notch GetObject"
+        assert structured_log_entry["EventResultDetails"] == "Really top notch CopyObject"
 
         # ASIM FileEvent Specific Fields
         assert structured_log_entry["TargetUsername"] == "Billy-the-fish"
@@ -69,6 +77,19 @@ class TestLogFileActivity(CommonEvents):
             == "e81bb824c4a09a811af17deae22f22dd2e1ec8cbb00b22629d2899f7c68da274"
         )
         assert structured_log_entry["TargetFileSize"] == 111
+
+        assert structured_log_entry["SrcFilePath"] == "s3-abcd.bucket.amazon.com/dir2/file.exe"
+        assert structured_log_entry["SrcFileName"] == "file.exe"
+        assert structured_log_entry["SrcFileExtension"] == "exe"
+        assert (
+            structured_log_entry["SrcFileMimeType"]
+            == "application/vnd.microsoft.portable-executable"
+        )
+        assert (
+            structured_log_entry["SrcFileSHA256"]
+            == "e81bb824c4a09a811af17deae22f22dd2e1ec8cbb00b22629d2899f7c68da274"
+        )
+        assert structured_log_entry["SrcFileSize"] == 111
 
     @freeze_time("2025-07-02 08:15:20")
     def test_populates_logs_from_current_time_and_request_varaible(self, wsgi_request, capsys):
@@ -145,15 +166,21 @@ class TestLogFileActivity(CommonEvents):
             file={
                 "path": filepath,
             },
+            source_file={
+                "path": filepath,
+            },
         )
 
         structured_log_entry = self._get_structured_log_entry(capsys)
 
         assert structured_log_entry["TargetFileName"] == expected_filename
+        assert structured_log_entry["SrcFileName"] == expected_filename
         if expected_extension is None:
             assert "TargetFileExtension" not in structured_log_entry
+            assert "SrcFileExtension" not in structured_log_entry
         else:
             assert structured_log_entry["TargetFileExtension"] == expected_extension
+            assert structured_log_entry["SrcFileExtension"] == expected_extension
 
     def test_does_not_populate_fields_which_are_not_provided(self, wsgi_request, capsys):
         wsgi_request.user = namedtuple("User", ["username"])(None)
@@ -179,6 +206,13 @@ class TestLogFileActivity(CommonEvents):
         assert "TargetFileMimeType" not in structured_log_entry
         assert "TargetFileSHA256" not in structured_log_entry
         assert "TargetFileSize" not in structured_log_entry
+
+        assert "SrcFilePath" not in structured_log_entry
+        assert "SrcFileName" not in structured_log_entry
+        assert "SrcFileExtension" not in structured_log_entry
+        assert "SrcFileMimeType" not in structured_log_entry
+        assert "SrcFileSHA256" not in structured_log_entry
+        assert "SrcFileSize" not in structured_log_entry
 
     def test_populates_fields_which_are_provided_as_none(self, wsgi_request, capsys):
         log_file_activity(
