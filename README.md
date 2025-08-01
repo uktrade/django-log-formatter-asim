@@ -106,6 +106,74 @@ log_authentication(
 }
 ```
 
+#### File Activity event
+
+Following the [ASIM File Event Schema](https://learn.microsoft.com/en-us/azure/sentinel/normalization-schema-file-event).
+
+```python
+# Example usage
+from django_log_formatter_asim.events import log_file_activity
+
+log_file_activity(
+    request,
+    event=log_file_activity.Event.FileCopied,
+    result=log_file_activity.Result.Success,
+    file={
+        "path": "/tmp/copied.txt",
+        "content_type": "text/plain",
+        "extension": "txt",
+        "name": "copied.txt",
+        "sha256": "6798b7a132f37a0474002dec538ec52bdcd5f7b76e49e52c8a3d2016ca8d1d18",
+        "size": 14,
+    },
+    # source_file is only necessary if the event is one of FileRenamed, FileMoved, FileCopied, FolderMoved
+    source_file={
+        "path": "/tmp/original.txt",
+        "content_type": "text/plain",
+        "extension": "txt",
+        "name": "original.txt",
+        "sha256": "6798b7a132f37a0474002dec538ec52bdcd5f7b76e49e52c8a3d2016ca8d1d18",
+        "size": 14,
+    },
+)
+
+# Example JSON printed to standard output
+{
+    # Values provided as arguments
+    "EventType": "FileCopied",
+    "EventResult": "Success",
+
+    "TargetFilePath": "/tmp/copied.txt",
+    "TargetFileName": "copied.txt",
+    "TargetFileExtension": "txt",
+    "TargetFileMimeType": "text/plain",
+    "TargetFileSHA256": "6798b7a132f37a0474002dec538ec52bdcd5f7b76e49e52c8a3d2016ca8d1d18",
+    "TargetFileSize": 14,
+
+    "SrcFilePath": "/tmp/original.txt",
+    "SrcFileName": "original.txt",
+    "SrcFileExtension": "txt",
+    "SrcFileMimeType": "text/plain",
+    "SrcFileSHA256": "6798b7a132f37a0474002dec538ec52bdcd5f7b76e49e52c8a3d2016ca8d1d18",
+    "SrcFileSize": 14,
+
+    # Calculated / Hard coded fields
+    "EventStartTime": "2025-07-30T11:05:09.406460+00:00",
+    "EventSchema": "FileEvent",
+    "EventSchemaVersion": "0.2.1",
+    "EventSeverity": "Informational",
+
+    # Taken from Django HttpRequest object
+    "HttpHost": "WebServer.local",
+    "SrcIpAddr": "192.168.1.101",
+    "TargetUrl": "https://WebServer.local/steel",
+    "TargetUsername": "Adrian"
+
+    # Taken from DBT Platform environment variables
+    "TargetAppName": "export-analytics-frontend",
+}
+```
+
 ### Settings
 
 `DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION` - the formatter checks this setting to see if personally identifiable information should be logged. If this is not set to true, only the user's id is logged.
