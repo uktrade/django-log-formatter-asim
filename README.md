@@ -189,33 +189,78 @@ if is_copilot():
    DLFA_TRACE_HEADERS = ("X-B3-TraceId", "X-B3-SpanId")
 ```
 
-### Formatter classes
+### Serialisation behaviour
+
+The package provides one `logging.Formatter` class, `ASIMFormatter` which routes log messages to a serialiser
+which generates a python dict which the formatter converts to a JSON string and prints to standard output.
+
+It has a generic serialiser called `ASIMRootFormatter` and a custom serlializer for log messages where the
+logger is `django.request`.
 
 ``` python
     ASIM_FORMATTERS = {
-        "root": ASIMSystemFormatter,
+        "root": ASIMRootFormatter,
         "django.request": ASIMRequestFormatter,
     }
 ```
 
-The default class for other loggers is:
+#### ASIMRootFormatter
+
+This serialiser outputs the following ASIM fields.
+
+- `EventSchema` = `ProcessEvent`
+- `ActingAppType` = `Django`
+- `AdditionalFields[DjangoLogFormatterAsimVersion]`
+- `EventSchemaVersion`
+- `EventMessage`
+- `EventCount`
+- `EventStartTime`
+- `EventEndTime`
+- `EventType`
+- `EventResult`
+- `EventSeverity`
+- `EventOriginalSeverity`
+
+Additionally, the following DataDog fields where available:
+
+- `dd.trace_id`
+- `dd.span_id`
+- `env`
+- `service`
+- `version`
+
+
+#### ASIMRequestFormatter
+
+This serialiser outputs the following ASIM fields in addition to the ones from ASIMRootFormatter.
+It is coupled to the datastructure provided by the `django.request` logger.
+The `django.request` logger only outputs requests where the response code is 4xx/5xx.
+
+- `SrcIpAddr` and `IpAddr`
+- `SrcPortNumber`
+- `SrcUserId` and `SrcUsername`
+- `HttpUserAgent`
+- `AdditionalFields["TraceHeaders"][trace_header_name]` - See `DLFA_TRACE_HEADERS` setting for more information.
+
+#### Creating a custom serialiser
+
+If you wish to create your own ASIM serialiser, you can inherit from `ASIMRootFormatter` and call
+`super().get_log_dict()` to get the base level logging data for augmentation:
 
 ``` python
-    ASIMSystemFormatter
-```
-
-### Creating a custom `logging.Formatter`
-
-If you wish to create your own ASIM formatter, you can inherit from ASIMSystemFormatter and call _get_event_base to get the base level logging data for use in augmentation:
-
-``` python
-    class ASIMSystemFormatter(ASIMFormatterBase):
-        def get_event(self):
-            logger_event = self._get_event_base()
+    class MyASIMFormatter(ASIMRootFormatter):
+        def get_log_dict(self):
+            log_dict = super().get_log_dict()
 
             # Customise logger event
 
-            return logger_event
+            return log_dict
+```
+
+This serialiser can then be added to `ASIM_FORMATTERS`...
+
+```python
+ASIM_FORMATTERS["my_logger"] = MyASIMFormatter
 ```
 
 ## Dependencies
