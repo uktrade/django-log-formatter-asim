@@ -9,6 +9,7 @@ from django.http import HttpRequest
 
 from .common import Activity
 from .common import Client
+from .common import LoggedInUser
 from .common import Result
 from .common import Server
 from .common import Severity
@@ -68,16 +69,6 @@ class FileActivityFile(FileActivityFileBase, total=False):
     size: Optional[int]
 
 
-class FileActivityUser(TypedDict, total=False):
-    """
-    A unique identifier for the user.
-
-    Defaults to the logged in Django User.username if not provided.
-    """
-
-    username: Optional[str]
-
-
 class LogFileActivity(Activity):
     Event = FileActivityEvent
     Result = Result
@@ -90,7 +81,7 @@ class LogFileActivity(Activity):
         result: Result,
         file: FileActivityFile,
         source_file: Optional[FileActivityFile] = None,
-        user: Optional[FileActivityUser] = None,
+        user: Optional[LoggedInUser] = None,
         server: Optional[Server] = None,
         client: Optional[Client] = None,
         severity: Optional[Severity] = None,
@@ -165,7 +156,7 @@ class LogFileActivity(Activity):
         result: Result,
         file: FileActivityFile,
         source_file: Optional[FileActivityFile],
-        user: FileActivityUser,
+        user: LoggedInUser,
         server: Server,
         client: Client,
         event_created: datetime.datetime,

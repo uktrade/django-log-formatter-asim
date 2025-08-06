@@ -9,6 +9,16 @@ from django.http import HttpRequest
 from django_log_formatter_asim.ecs import _get_container_id
 
 
+class LoggedInUser(TypedDict, total=False):
+    """
+    A unique identifier for the user.
+
+    Defaults to the logged in Django User.username if not provided.
+    """
+
+    username: Optional[str]
+
+
 class Result(str, Enum):
     Success = "Success"
     Partial = "Partial"
