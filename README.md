@@ -56,6 +56,96 @@ LOGGING = {
 In this example we assign the ASIM formatter to a `handler` and ensure both `root` and `django` loggers use this `handler`.
 We then set `propagate` to `False` on the `django` logger, to avoid duplicating logs at the root level.
 
+### Settings
+
+`DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION` - the formatter checks this setting to see if personally identifiable information should be logged. If this is not set to true, only the user's id is logged.
+
+`DLFA_TRACE_HEADERS` - used for defining custom zipkin headers, the defaults is `("X-Amzn-Trace-Id")`, but for applications hosted in GOV.UK PaaS you should use `("X-B3-TraceId", "X-B3-SpanId")`. If you are running your application in both places side by side during migration, the following should work in your Django settings:
+
+`DLFA_INCLUDE_RAW_LOG` - By default the original unformatted log is not included in the ASIM formatted log. You can enable that by setting this to `True` and it will be included in `AddidtionalFields.RawLog`.
+
+```python
+from dbt_copilot_python.utility import is_copilot
+
+if is_copilot():
+   DLFA_TRACE_HEADERS = ("X-B3-TraceId", "X-B3-SpanId")
+```
+
+### Serialisation behaviour
+
+The package provides one `logging.Formatter` class, `ASIMFormatter` which routes log messages to a serialiser
+which generates a python dict which the formatter converts to a JSON string and prints to standard output.
+
+It has a generic serialiser called `ASIMRootFormatter` and a custom serlializer for log messages where the
+logger is `django.request`.
+
+``` python
+    ASIM_FORMATTERS = {
+        "root": ASIMRootFormatter,
+        "django.request": ASIMRequestFormatter,
+    }
+```
+
+#### ASIMRootFormatter
+
+This serialiser outputs the following ASIM fields.
+
+- `EventSchema` = `ProcessEvent`
+- `ActingAppType` = `Django`
+- `AdditionalFields[DjangoLogFormatterAsimVersion]`
+- `EventSchemaVersion`
+- `EventMessage`
+- `EventCount`
+- `EventStartTime`
+- `EventEndTime`
+- `EventType`
+- `EventResult`
+- `EventSeverity`
+- `EventOriginalSeverity`
+
+Additionally, the following DataDog fields where available:
+
+- `dd.trace_id`
+- `dd.span_id`
+- `env`
+- `service`
+- `version`
+
+
+#### ASIMRequestFormatter
+
+This serialiser outputs the following ASIM fields in addition to the ones from ASIMRootFormatter.
+It is coupled to the datastructure provided by the `django.request` logger.
+The `django.request` logger only outputs requests where the response code is 4xx/5xx.
+
+- `SrcIpAddr` and `IpAddr`
+- `SrcPortNumber`
+- `SrcUserId` and `SrcUsername`
+- `HttpUserAgent`
+- `AdditionalFields["TraceHeaders"][trace_header_name]` - See `DLFA_TRACE_HEADERS` setting for more information.
+
+#### Creating a custom serialiser
+
+If you wish to create your own ASIM serialiser, you can inherit from `ASIMRootFormatter` and call
+`super().get_log_dict()` to get the base level logging data for augmentation:
+
+``` python
+    class MyASIMFormatter(ASIMRootFormatter):
+        def get_log_dict(self):
+            log_dict = super().get_log_dict()
+
+            # Customise logger event
+
+            return log_dict
+```
+
+This serialiser can then be added to `ASIM_FORMATTERS`...
+
+```python
+ASIM_FORMATTERS["my_logger"] = MyASIMFormatter
+```
+
+
 ### ASIM Events
 
 The events mostly follow the Microsoft schema but have been tailored to Department of Business and Trade needs.
@@ -174,93 +264,46 @@ log_file_activity(
 }
 ```
 
-### Settings
+#### Account Management event
 
-`DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION` - the formatter checks this setting to see if personally identifiable information should be logged. If this is not set to true, only the user's id is logged.
+Following the [ASIM User Management Schema](https://learn.microsoft.com/en-us/azure/sentinel/normalization-schema-user-management).
 
-`DLFA_TRACE_HEADERS` - used for defining custom zipkin headers, the defaults is `("X-Amzn-Trace-Id")`, but for applications hosted in GOV.UK PaaS you should use `("X-B3-TraceId", "X-B3-SpanId")`. If you are running your application in both places side by side during migration, the following should work in your Django settings:
-
-`DLFA_INCLUDE_RAW_LOG` - By default the original unformatted log is not included in the ASIM formatted log. You can enable that by setting this to `True` and it will be included in `AddidtionalFields.RawLog`.
 
 ```python
-from dbt_copilot_python.utility import is_copilot
+# Example usage
+from django_log_formatter_asim.events import log_account_management
 
-if is_copilot():
-   DLFA_TRACE_HEADERS = ("X-B3-TraceId", "X-B3-SpanId")
-```
+log_account_management(
+    request,
+    event=log_account_management.Event.UserCreated,
+    result=log_account_management.Result.Success,
+    account={
+        "username": "Roger",
+    },
+)
 
-### Serialisation behaviour
+# Example JSON printed to standard output
+{
+    # Values provided as arguments
+    "EventType": "UserCreated",
+    "EventResult": "Success",
+    "TargetUsername": "Roger",
 
-The package provides one `logging.Formatter` class, `ASIMFormatter` which routes log messages to a serialiser
-which generates a python dict which the formatter converts to a JSON string and prints to standard output.
+    # Calculated / Hard coded fields
+    "EventStartTime": "2025-07-30T11:05:09.406460+00:00",
+    "EventSchema": "UserManagement",
+    "EventSchemaVersion": "0.1.1",
+    "EventSeverity": "Informational",
 
-It has a generic serialiser called `ASIMRootFormatter` and a custom serlializer for log messages where the
-logger is `django.request`.
+    # Taken from Django HttpRequest object
+    "HttpHost": "WebServer.local",
+    "SrcIpAddr": "192.168.1.101",
+    "TargetUrl": "https://WebServer.local/admin/create-user",
+    "ActorUsername": "Adrian"
 
-``` python
-    ASIM_FORMATTERS = {
-        "root": ASIMRootFormatter,
-        "django.request": ASIMRequestFormatter,
-    }
-```
-
-#### ASIMRootFormatter
-
-This serialiser outputs the following ASIM fields.
-
-- `EventSchema` = `ProcessEvent`
-- `ActingAppType` = `Django`
-- `AdditionalFields[DjangoLogFormatterAsimVersion]`
-- `EventSchemaVersion`
-- `EventMessage`
-- `EventCount`
-- `EventStartTime`
-- `EventEndTime`
-- `EventType`
-- `EventResult`
-- `EventSeverity`
-- `EventOriginalSeverity`
-
-Additionally, the following DataDog fields where available:
-
-- `dd.trace_id`
-- `dd.span_id`
-- `env`
-- `service`
-- `version`
-
-
-#### ASIMRequestFormatter
-
-This serialiser outputs the following ASIM fields in addition to the ones from ASIMRootFormatter.
-It is coupled to the datastructure provided by the `django.request` logger.
-The `django.request` logger only outputs requests where the response code is 4xx/5xx.
-
-- `SrcIpAddr` and `IpAddr`
-- `SrcPortNumber`
-- `SrcUserId` and `SrcUsername`
-- `HttpUserAgent`
-- `AdditionalFields["TraceHeaders"][trace_header_name]` - See `DLFA_TRACE_HEADERS` setting for more information.
-
-#### Creating a custom serialiser
-
-If you wish to create your own ASIM serialiser, you can inherit from `ASIMRootFormatter` and call
-`super().get_log_dict()` to get the base level logging data for augmentation:
-
-``` python
-    class MyASIMFormatter(ASIMRootFormatter):
-        def get_log_dict(self):
-            log_dict = super().get_log_dict()
-
-            # Customise logger event
-
-            return log_dict
-```
-
-This serialiser can then be added to `ASIM_FORMATTERS`...
-
-```python
-ASIM_FORMATTERS["my_logger"] = MyASIMFormatter
+    # Taken from DBT Platform environment variables
+    "TargetAppName": "export-analytics-frontend",
+}
 ```
 
 ## Dependencies
