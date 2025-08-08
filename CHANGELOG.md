@@ -1,12 +1,21 @@
 # Changelog
 
+## Unreleased
+
+
+### Features
+
+* Add an ASIM events method `log_file_activity` for emitting cyber information.
+  See also [usage example](README.md#file-activity-event), and the [method docstring](django_log_formatter_asim/events/file_activity.py).
+* Add an ASIM events method `log_account_management` for emitting cyber information.
+  See also [usage example](README.md#account-management-event), and the [method docstring](django_log_formatter_asim/events/account_management.py).
 
 ## [1.1.0](https://github.com/uktrade/django-log-formatter-asim/compare/1.0.0...1.1.0) (2025-07-22)
 
 
 ### Features
 
-* Add module for logging ASIM events, with a method `log_authentication` for emitting debug information.
+* Add module for logging ASIM events, with a method `log_authentication` for emitting cyber information.
   See also [usage example](README.md#authentication-event), and the [method docstring](django_log_formatter_asim/events/authentication.py).
 
 ## [1.0.0](https://github.com/uktrade/django-log-formatter-asim/compare/0.0.6...1.0.0) (2025-03-18)
