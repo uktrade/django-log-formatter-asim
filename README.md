@@ -62,14 +62,19 @@ We then set `propagate` to `False` on the `django` logger, to avoid duplicating 
 
 `DLFA_TRACE_HEADERS` - used for defining custom zipkin headers, the defaults is `("X-Amzn-Trace-Id")`, but for applications hosted in GOV.UK PaaS you should use `("X-B3-TraceId", "X-B3-SpanId")`. If you are running your application in both places side by side during migration, the following should work in your Django settings:
 
-`DLFA_INCLUDE_RAW_LOG` - By default the original unformatted log is not included in the ASIM formatted log. You can enable that by setting this to `True` and it will be included in `AddidtionalFields.RawLog`.
-
 ```python
 from dbt_copilot_python.utility import is_copilot
 
 if is_copilot():
    DLFA_TRACE_HEADERS = ("X-B3-TraceId", "X-B3-SpanId")
 ```
+
+`DLFA_INCLUDE_RAW_LOG` - By default the original unformatted log is not included in the ASIM formatted log. You can enable that by setting this to `True` and it will be included in `AddidtionalFields.RawLog`.
+
+> [!WARNING]
+> Setting `DLFA_INCLUDE_RAW_LOG` to `True` will cause additional private fields to be output to your logs.
+> This could include secrets, such as AWS Access Keys, private HTTP Request data, or personally identifiable information.
+> This setting is not recommended for a production environment.
 
 ### Serialisation behaviour
 
