@@ -57,6 +57,20 @@ class ASIMRootFormatter:
 
         return event_dict
 
+    def _datadog_error_tracking(self, record):
+         if record.levelno >= logging.ERROR:
+
+            error_kind = f"{record.pathname}:{record.lineno}:{record.levelname}"
+
+            return {
+                    "error": {
+                        "kind": error_kind,
+                        "message": record.getMessage(),
+                    }
+                }
+         return {}
+
+
     def get_log_dict(self):
         record = self.record
         log_time = datetime.fromtimestamp(record.created, timezone.utc).isoformat()
@@ -81,6 +95,9 @@ class ASIMRootFormatter:
         }
 
         log_dict.update(self._datadog_trace_dict())
+
+        if getattr(settings, "DLFA_DATADOG_ERROR_TRACKING_FOR_LOGS", False):
+           log_dict.update(self._datadog_error_tracking(record)) 
 
         if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
             return self.get_log_dict_with_raw(log_dict)

@@ -227,6 +227,24 @@ class TestASIMFormatter:
         assert TEST_FIRST_NAME in raw_log
         assert TEST_LAST_NAME in raw_log
 
+    
+    @patch("logging.Logger.findCaller")
+    @patch("ddtrace.trace.tracer.current_span")
+    def test_logs_log_error_information_for_datadog(
+        self, mock_ddtrace_span, mock_logger_find_caller, caplog
+    ):
+        settings.DLFA_DATADOG_ERROR_TRACKING_FOR_LOGS = True
+        logger_name = "django"
+        expected_message = "Test log message"
+
+        mock_logger_find_caller.return_value = ("/fake/path/app.py", 123, "fake_func", None) 
+        logger = logging.getLogger(logger_name).error(expected_message)
+        
+
+        output = self._get_json_log_entry(caplog)
+        assert output["EventMessage"] == expected_message 
+        assert output["error"]["kind"] == "/fake/path/app.py:123:ERROR" 
+
     @patch("ddtrace.trace.tracer.current_span")
     def test_logs_log_datadog_required_values_when_env_vars_set(self, mock_ddtrace_span, caplog):
         os.environ["DD_ENV"] = "test"
