@@ -76,6 +76,8 @@ if is_copilot():
 > This could include secrets, such as AWS Access Keys, private HTTP Request data, or personally identifiable information.
 > This setting is not recommended for a production environment.
 
+`DLFA_DATADOG_ERROR_TRACKING_FOR_LOGS` - By default the [required attributes for Datadog Error Tracking for Logs](https://docs.datadoghq.com/logs/error_tracking/backend/?tab=serilog#attributes-for-error-tracking) are not included. You can include these by setting this to `True`. This will surface error logs as errors in Datadog, similarly to Sentry.
+
 ### Serialisation behaviour
 
 The package provides one `logging.Formatter` class, `ASIMFormatter` which routes log messages to a serialiser
