@@ -46,6 +46,8 @@ class TestASIMFormatter:
             del settings.DLFA_TRACE_HEADERS
         if getattr(settings, "DLFA_INCLUDE_RAW_LOG", False):
             del settings.DLFA_INCLUDE_RAW_LOG
+        if getattr(settings, "DLFA_DATADOG_ERROR_TRACKING_FOR_LOGS", False):
+            del settings.DLFA_DATADOG_ERROR_TRACKING_FOR_LOGS
 
     @pytest.mark.parametrize(
         "logger_name",
@@ -227,23 +229,90 @@ class TestASIMFormatter:
         assert TEST_FIRST_NAME in raw_log
         assert TEST_LAST_NAME in raw_log
 
-    
+    @pytest.mark.parametrize("level", ["error", "critical"])
     @patch("logging.Logger.findCaller")
     @patch("ddtrace.trace.tracer.current_span")
-    def test_logs_log_error_information_for_datadog(
-        self, mock_ddtrace_span, mock_logger_find_caller, caplog
+    def test_logs_log_error_attribute_when_error_tracking_for_logs_is_on(
+        self, mock_ddtrace_span, mock_logger_find_caller, level, caplog
     ):
         settings.DLFA_DATADOG_ERROR_TRACKING_FOR_LOGS = True
         logger_name = "django"
         expected_message = "Test log message"
 
-        mock_logger_find_caller.return_value = ("/fake/path/app.py", 123, "fake_func", None) 
-        logger = logging.getLogger(logger_name).error(expected_message)
-        
+        mock_logger_find_caller.return_value = ("/fake/path/app.py", 123, "fake_func", None)
+        logger = getattr(logging.getLogger(logger_name), level)
+        logger(expected_message)
 
         output = self._get_json_log_entry(caplog)
-        assert output["EventMessage"] == expected_message 
-        assert output["error"]["kind"] == "/fake/path/app.py:123:ERROR" 
+        assert output["error"]["kind"] == f"/fake/path/app.py:123:{level.upper()}"
+
+    @pytest.mark.parametrize(
+        "level",
+        [
+            "info",
+            "debug",
+            "warning",
+            "error",
+            "critical",
+        ],
+    )
+    @patch("logging.Logger.findCaller")
+    @patch("ddtrace.trace.tracer.current_span")
+    def test_logs_not_log_error_attribute_when_error_tracking_for_logs_is_off(
+        self, mock_ddtrace_span, mock_logger_find_caller, level, caplog
+    ):
+        settings.DLFA_DATADOG_ERROR_TRACKING_FOR_LOGS = False
+        logger_name = "django"
+        expected_message = "Test log message"
+
+        mock_logger_find_caller.return_value = ("/fake/path/app.py", 123, "fake_func", None)
+        logger = getattr(logging.getLogger(logger_name), level)
+        logger(expected_message)
+
+        output = self._get_json_log_entry(caplog)
+        assert output.get("error") == None
+
+    @pytest.mark.parametrize(
+        "level",
+        [
+            "info",
+            "debug",
+            "warning",
+            "error",
+            "critical",
+        ],
+    )
+    @patch("logging.Logger.findCaller")
+    @patch("ddtrace.trace.tracer.current_span")
+    def test_logs_not_log_error_attribute_when_error_tracking_for_logs_is_default(
+        self, mock_ddtrace_span, mock_logger_find_caller, level, caplog
+    ):
+        logger_name = "django"
+        expected_message = "Test log message"
+
+        mock_logger_find_caller.return_value = ("/fake/path/app.py", 123, "fake_func", None)
+        logger = getattr(logging.getLogger(logger_name), level)
+        logger(expected_message)
+
+        output = self._get_json_log_entry(caplog)
+        assert output.get("error") == None
+
+    @pytest.mark.parametrize("level", ["debug", "info", "warning"])
+    @patch("logging.Logger.findCaller")
+    @patch("ddtrace.trace.tracer.current_span")
+    def test_logs_not_log_error_attribute_when_error_tracking_for_logs_is_on_but_status_less_than_error(
+        self, mock_ddtrace_span, mock_logger_find_caller, level, caplog
+    ):
+        settings.DLFA_DATADOG_ERROR_TRACKING_FOR_LOGS = True
+        logger_name = "django"
+        expected_message = "Test log message"
+
+        mock_logger_find_caller.return_value = ("/fake/path/app.py", 123, "fake_func", None)
+        logger = getattr(logging.getLogger(logger_name), level)
+        logger(expected_message)
+
+        output = self._get_json_log_entry(caplog)
+        assert output.get("error") == None
 
     @patch("ddtrace.trace.tracer.current_span")
     def test_logs_log_datadog_required_values_when_env_vars_set(self, mock_ddtrace_span, caplog):
