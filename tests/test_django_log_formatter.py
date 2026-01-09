@@ -232,7 +232,7 @@ class TestASIMFormatter:
         os.environ["DD_ENV"] = "test"
         os.environ["DD_SERVICE"] = "django-service"
         os.environ["DD_VERSION"] = "1.0.0"
-        ddtrace.config = ddtrace.settings._config.Config()
+        ddtrace.config = ddtrace.internal.settings._config.Config()
 
         mock_ddtrace_span_response = MagicMock()
         mock_ddtrace_span_response.trace_id = 5735492756521486600
@@ -252,7 +252,7 @@ class TestASIMFormatter:
         os.environ.pop("DD_ENV")
         os.environ.pop("DD_SERVICE")
         os.environ.pop("DD_VERSION")
-        ddtrace.config = ddtrace.settings._config.Config()
+        ddtrace.config = ddtrace.internal.settings._config.Config()
 
     @patch("ddtrace.trace.tracer.current_span")
     def test_logs_log_datadog_required_values_when_env_vars_not_set(
