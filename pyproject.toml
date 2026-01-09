@@ -3,7 +3,7 @@ line-length = 100
 
 [tool.poetry]
 name = "django-log-formatter-asim"
-version = "1.1.0"
+version = "1.2.0"
 description = "Formats Django logs in ASIM format."
 authors = ["Department for Business and Trade Platform Team <sre-team@digital.trade.gov.uk>"]
 license = "MIT"
