@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+## [1.2.0](https://github.com/uktrade/django-log-formatter-asim/compare/1.1.0...1.2.0) (2026-01-12)
 
 ### Features
 
@@ -9,6 +10,7 @@
   See also [usage example](README.md#file-activity-event), and the [method docstring](django_log_formatter_asim/events/file_activity.py).
 * Add an ASIM events method `log_account_management` for emitting cyber information.
   See also [usage example](README.md#account-management-event), and the [method docstring](django_log_formatter_asim/events/account_management.py).
+* Add support for `ddtrace` major version 4.
 
 ## [1.1.0](https://github.com/uktrade/django-log-formatter-asim/compare/1.0.0...1.1.0) (2025-07-22)
 
