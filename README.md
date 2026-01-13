@@ -343,6 +343,8 @@ Or, run `poetry run tox` in the root directory to run all tests for multiple Pyt
 
 ### Publishing
 
+Create a pull request to update the [CHANGELOG.md](./CHANGELOG.md) and also create a [create a release in GitHub](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository#creating-a-release) for your new version.
+
 1. Acquire API token from [Passman](https://passman.ci.uktrade.digital/secret/cc82a3f7-ddfa-4312-ab56-1ff8528dadc8/).
    - Request access from the SRE team.
    - _Note: You will need access to the `platform` group in Passman._
