@@ -10,3 +10,7 @@ Addresses https://uktrade.atlassian.net/browse/DBTP-<ticket>.
 - [ ] Link to ticket included (unless it's a quick out of ticket thing)
 - [ ] Includes tests (or an explanation for why it doesn't)
 - [ ] Includes any applicable changes to the documentation in this code base
+
+## Reviewer Checklist
+
+- [ ] I have reviewed the PR and ensured no secret values are present
