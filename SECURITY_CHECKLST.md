@@ -19,8 +19,8 @@ This checklist is designed to make it easier to improve the security posture of 
 - [X] [Add Steward to Repository access](#add-at-least-one-steward-to-repository-access)
 - [X] [Create an admin team for the repository](#create-an-admin-team-for-the-repository)
 - [X] [Review and limit maintainers with admin rights to the strict minimum](#review-and-limit-maintainers-with-admin-rights-to-the-strict-minimum)
-- [ ] [Review the Pull Request template](#review-pull-request-template)
-- [ ] [Review the SECURITY.md policy](#review-securitymd-policy)
+- [X] [Review the Pull Request template](#review-pull-request-template)
+- [X] [Review the SECURITY.md policy](#review-securitymd-policy)
 
 ## Setup the pre-commit hook framework
 
