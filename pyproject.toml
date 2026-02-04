@@ -16,7 +16,7 @@ packages = [
 python = ">=3.9,<4"
 django = [
     { version = ">=3,<5", python = ">=3.9,<3.10" },
-    { version = ">=3,<6", python = ">=3.10,<4" },
+    { version = ">=3,<7", python = ">=3.10,<4" },
 ]
 ddtrace = ">=3.2.1,<5"
 django-ipware = "^7.0.1"
