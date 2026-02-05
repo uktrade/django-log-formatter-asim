@@ -13,7 +13,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4"
+python = ">=3.10,<4"
 django = ">=4.2,<7"
 ddtrace = ">=3.2.1,<5"
 django-ipware = "^7.0.1"
