@@ -235,10 +235,10 @@ files = [
 
 [package.dependencies]
 bytecode = [
-    {version = ">=0.13.0,<1", markers = "python_version < \"3.11\""},
     {version = ">=0.16.0,<1", markers = "python_version >= \"3.13.0\" and python_version < \"3.14.0\""},
     {version = ">=0.15.1,<1", markers = "python_version ~= \"3.12.0\""},
     {version = ">=0.14.0,<1", markers = "python_version ~= \"3.11.0\""},
+    {version = ">=0.13.0,<1", markers = "python_version < \"3.11.0\""},
 ]
 envier = ">=0.6.1,<0.7.0"
 opentelemetry-api = ">=1,<2"
@@ -959,8 +959,8 @@ files = [
 [package.dependencies]
 distlib = ">=0.3.7,<1"
 filelock = [
-    {version = ">=3.16.1,<4", markers = "python_version < \"3.10\""},
     {version = ">=3.20.1,<4", markers = "python_version >= \"3.10\""},
+    {version = ">=3.16.1,<4", markers = "python_version < \"3.10\""},
 ]
 platformdirs = ">=3.9.1,<5"
 typing-extensions = {version = ">=4.13.2", markers = "python_version < \"3.11\""}
@@ -1112,4 +1112,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4"
-content-hash = "b1886ad355eeb8b637e1c03b6b75cecd766b653ff58e3265e7e7a25fecac373a"
+content-hash = "50eb5d0a99322c1a9fd1c737d515929bd247fd8b9aed4695c9a8fa7c030bf9c4"
