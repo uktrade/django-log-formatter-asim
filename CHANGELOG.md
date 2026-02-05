@@ -9,6 +9,7 @@
 ### Removed
 
 * Support for versions of Django which are end of life, below 4.2
+* Support for Python 3.9 which is now end of life
 
 ## [1.2.0](https://github.com/uktrade/django-log-formatter-asim/compare/1.1.0...1.2.0) (2026-01-12)
 
