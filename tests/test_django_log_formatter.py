@@ -273,6 +273,20 @@ class TestASIMFormatter:
         assert output["dd.span_id"] == "12448338029536640280"
         assert output["container_id"] == "709d1c10779d47b2a84db9eef2ebd041-0265927825"
 
+    @patch("ddtrace.trace.tracer.current_span")
+    def test_logs_dont_log_datadog_correlation_values_when_no_span(self, mock_ddtrace_span, caplog):
+        mock_ddtrace_span.return_value = None
+
+        self._create_request_log_record(logging.getLogger("django.request"))
+
+        output = self._get_json_log_entry(caplog)
+        assert "service" not in output.keys()
+        assert "env" not in output.keys()
+        assert "version" not in output.keys()
+        assert "dd.trace_id" not in output.keys()
+        assert "dd.span_id" not in output.keys()
+        assert "container_id" not in output.keys()
+
     def test_logs_anonymous_user_when_no_user_logged_in(self, caplog):
         from django.contrib.auth.models import AnonymousUser
 

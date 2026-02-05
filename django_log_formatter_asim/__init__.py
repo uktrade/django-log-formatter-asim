@@ -38,22 +38,21 @@ class ASIMRootFormatter:
         event_dict = {}
 
         span = tracer.current_span()
-        trace_id, span_id = (
-            (self._get_first_64_bits_of(span.trace_id), span.span_id)
-            if span
-            else (None, None)
-        )
+        if span:
+            trace_id, span_id = (
+                (self._get_first_64_bits_of(span.trace_id), span.span_id) if span else (None, None)
+            )
 
-        # add ids to structlog event dictionary
-        event_dict["dd.trace_id"] = str(trace_id or 0)
-        event_dict["dd.span_id"] = str(span_id or 0)
+            # add ids to structlog event dictionary
+            event_dict["dd.trace_id"] = str(trace_id or 0)
+            event_dict["dd.span_id"] = str(span_id or 0)
 
-        # add the env, service, and version configured for the tracer
-        event_dict["env"] = ddtrace.config.env or ""
-        event_dict["service"] = ddtrace.config.service or ""
-        event_dict["version"] = ddtrace.config.version or ""
+            # add the env, service, and version configured for the tracer
+            event_dict["env"] = ddtrace.config.env or ""
+            event_dict["service"] = ddtrace.config.service or ""
+            event_dict["version"] = ddtrace.config.version or ""
 
-        event_dict["container_id"] = _get_container_id()
+            event_dict["container_id"] = _get_container_id()
 
         return event_dict
 
@@ -188,6 +187,7 @@ class ASIMRequestFormatter(ASIMRootFormatter):
         if not http_user_agent:
             http_user_agent = request.META.get("HTTP_USER_AGENT", None)
         return http_user_agent
+
 
 ASIM_FORMATTERS = {
     "root": ASIMRootFormatter,
