@@ -8,6 +8,7 @@ from unittest.mock import patch
 import ddtrace
 import pytest
 from django.conf import settings
+from django.test import AsyncRequestFactory
 from django.test import RequestFactory
 from freezegun import freeze_time
 
@@ -69,12 +70,19 @@ class TestASIMFormatter:
         # Additional fields...
         assert output["AdditionalFields"]["TraceHeaders"] == {}
 
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
     @freeze_time("2023-10-17 07:15:30")
-    def test_request_formatter_logs_correct_fields(self, caplog):
+    def test_request_formatter_logs_correct_fields(self, request_factory, caplog):
         logger_name = "django.request"
         overrides = {"remote_address": "10.9.8.7", "server_port": "567"}
 
-        self._create_request_log_record(logging.getLogger(logger_name), overrides)
+        self._create_request_log_record(logging.getLogger(logger_name), overrides, request_factory)
 
         output = self._get_json_log_entry(caplog)
         self._assert_base_fields(
@@ -116,38 +124,54 @@ class TestASIMFormatter:
 
     expected_user_agent = "Test request.user_agent"
 
-    def test_request_formatter_sets_http_user_agent(self, caplog):
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
+    def test_request_formatter_sets_http_user_agent(self, request_factory, caplog):
         expected_user_agent = "Test request.headers.user_agent"
         overrides = {
             "user_agent": expected_user_agent,
         }
 
-        self._create_request_log_record(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(
+            logging.getLogger("django.request"), overrides, request_factory
+        )
 
         output = self._get_json_log_entry(caplog)
         assert output["HttpUserAgent"] == expected_user_agent
 
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
     @pytest.mark.parametrize(
         "trace_header_setting, expected_trace_headers",
         [
             (None, {"X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value"}),
             (
                 ("X-B3-TraceId", "X-B3-SpanId"),
-                {"X-B3-TraceId": "X-B3-SpanId-Value", "X-B3-SpanId": "X-B3-TraceId-Value"},
+                {"X-B3-TraceId": "X-B3-TraceId-Value", "X-B3-SpanId": "X-B3-SpanId-Value"},
             ),
         ],
     )
     @freeze_time("2023-10-17 07:15:30")
     def test_request_formatter_logs_trace_header_with_fallback_to_default(
-        self, trace_header_setting, expected_trace_headers, caplog
+        self, request_factory, trace_header_setting, expected_trace_headers, caplog
     ):
         if trace_header_setting:
             settings.DLFA_TRACE_HEADERS = trace_header_setting
-        overrides = {
-            "trace_headers": expected_trace_headers,
-        }
+        overrides = {"trace_headers": expected_trace_headers}
 
-        self._create_request_log_record(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(
+            logging.getLogger("django.request"), overrides, request_factory
+        )
 
         output = self._get_json_log_entry(caplog)
         assert "TraceHeaders" in output["AdditionalFields"]
@@ -183,6 +207,13 @@ class TestASIMFormatter:
         )
 
     @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
+    @pytest.mark.parametrize(
         "log_sensitive_user_data",
         [
             ("UNSET"),
@@ -190,7 +221,7 @@ class TestASIMFormatter:
         ],
     )
     def test_does_not_log_personally_identifiable_information_when_log_sensitive_user_data_is_off(
-        self, log_sensitive_user_data, caplog
+        self, request_factory, log_sensitive_user_data, caplog
     ):
         settings.DLFA_INCLUDE_RAW_LOG = True
         if log_sensitive_user_data != "UNSET":
@@ -199,7 +230,9 @@ class TestASIMFormatter:
             "user": self._create_user(),
         }
 
-        self._create_request_log_record(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(
+            logging.getLogger("django.request"), overrides, request_factory
+        )
 
         output = self._get_json_log_entry(caplog)
         raw_log = output["AdditionalFields"]["RawLog"]
@@ -208,8 +241,15 @@ class TestASIMFormatter:
         assert TEST_PASSWORD not in raw_log
         assert "{{PASSWORD}}" in raw_log
 
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
     def test_logs_log_personally_identifiable_information_when_log_sensitive_user_data_is_on(
-        self, caplog
+        self, request_factory, caplog
     ):
         settings.DLFA_INCLUDE_RAW_LOG = True
         settings.DLFA_LOG_PERSONALLY_IDENTIFIABLE_INFORMATION = True
@@ -217,7 +257,9 @@ class TestASIMFormatter:
             "user": self._create_user(),
         }
 
-        self._create_request_log_record(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(
+            logging.getLogger("django.request"), overrides, request_factory
+        )
 
         output = self._get_json_log_entry(caplog)
         assert output["SrcUsername"] == TEST_USERNAME
@@ -227,8 +269,17 @@ class TestASIMFormatter:
         assert TEST_FIRST_NAME in raw_log
         assert TEST_LAST_NAME in raw_log
 
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
     @patch("ddtrace.trace.tracer.current_span")
-    def test_logs_log_datadog_required_values_when_env_vars_set(self, mock_ddtrace_span, caplog):
+    def test_logs_log_datadog_required_values_when_env_vars_set(
+        self, mock_ddtrace_span, request_factory, caplog
+    ):
         os.environ["DD_ENV"] = "test"
         os.environ["DD_SERVICE"] = "django-service"
         os.environ["DD_VERSION"] = "1.0.0"
@@ -239,7 +290,9 @@ class TestASIMFormatter:
         mock_ddtrace_span_response.span_id = 12448338029536640280
         mock_ddtrace_span.return_value = mock_ddtrace_span_response
 
-        self._create_request_log_record(logging.getLogger("django.request"))
+        self._create_request_log_record(
+            logging.getLogger("django.request"), overrides={}, request_factory=request_factory
+        )
 
         output = self._get_json_log_entry(caplog)
         assert output["service"] == "django-service"
@@ -254,16 +307,25 @@ class TestASIMFormatter:
         os.environ.pop("DD_VERSION")
         ddtrace.config = ddtrace.internal.settings._config.Config()
 
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
     @patch("ddtrace.trace.tracer.current_span")
     def test_logs_log_datadog_required_values_when_env_vars_not_set(
-        self, mock_ddtrace_span, caplog
+        self, mock_ddtrace_span, request_factory, caplog
     ):
         mock_ddtrace_span_response = MagicMock()
         mock_ddtrace_span_response.trace_id = 5735492756521486600
         mock_ddtrace_span_response.span_id = 12448338029536640280
         mock_ddtrace_span.return_value = mock_ddtrace_span_response
 
-        self._create_request_log_record(logging.getLogger("django.request"))
+        self._create_request_log_record(
+            logging.getLogger("django.request"), overrides={}, request_factory=request_factory
+        )
 
         output = self._get_json_log_entry(caplog)
         assert output["service"] == ""
@@ -273,21 +335,39 @@ class TestASIMFormatter:
         assert output["dd.span_id"] == "12448338029536640280"
         assert output["container_id"] == "709d1c10779d47b2a84db9eef2ebd041-0265927825"
 
-    def test_logs_anonymous_user_when_no_user_logged_in(self, caplog):
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
+    def test_logs_anonymous_user_when_no_user_logged_in(self, request_factory, caplog):
         from django.contrib.auth.models import AnonymousUser
 
         overrides = {
             "user": AnonymousUser(),
         }
 
-        self._create_request_log_record(logging.getLogger("django.request"), overrides)
+        self._create_request_log_record(
+            logging.getLogger("django.request"), overrides, request_factory
+        )
 
         output = self._get_json_log_entry(caplog)
         assert output["SrcUserId"] is None
         assert output["SrcUsername"] == "AnonymousUser"
 
-    def test_serialize_user(self):
-        request_log = self._create_request_log_record(logging.getLogger("django.request"))
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
+    def test_serialize_user(self, request_factory):
+        request_log = self._create_request_log_record(
+            logging.getLogger("django.request"), overrides={}, request_factory=request_factory
+        )
         user = self._create_user()
         user.random_field_name = "blah"
 
@@ -304,8 +384,17 @@ class TestASIMFormatter:
         assert serialized_user.get("is_superuser") == user.is_superuser
         assert "random_field_name" not in serialized_user.keys()
 
-    def test_serialize_request(self):
-        request_log = self._create_request_log_record(logging.getLogger("django.request"))
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
+    def test_serialize_request(self, request_factory):
+        request_log = self._create_request_log_record(
+            logging.getLogger("django.request"), overrides={}, request_factory=request_factory
+        )
         request = request_log.request
         request.user = self._create_user()
         request.random_field_name = "blah"
@@ -321,8 +410,17 @@ class TestASIMFormatter:
             request.user
         )
 
-    def test_request_formatter_get_log_dict_with_raw(self):
-        request_log = self._create_request_log_record(logging.getLogger("django.request"))
+    @pytest.mark.parametrize(
+        "request_factory",
+        [
+            RequestFactory,
+            AsyncRequestFactory,
+        ],
+    )
+    def test_request_formatter_get_log_dict_with_raw(self, request_factory):
+        request_log = self._create_request_log_record(
+            logging.getLogger("django.request"), overrides={}, request_factory=request_factory
+        )
         request_log.request.user = self._create_user()
 
         formatter = ASIMRequestFormatter(request_log)
@@ -357,28 +455,24 @@ class TestASIMFormatter:
             == distribution("django-log-formatter-asim").version
         )
 
-    def _create_request(self, overrides=None):
+    def _create_request(self, overrides=None, request_factory=RequestFactory):
         if overrides is None:
             overrides = {}
-        headers = {
-            "HTTP_X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value",
-        }
-        if overrides.get("remote_address"):
-            headers["HTTP_REMOTE_ADDR"] = overrides.get("remote_address")
+        headers = {"X-Amzn-Trace-Id": "X-Amzn-Trace-Id-Value"}
+
         if overrides.get("user_agent"):
-            headers["HTTP_USER_AGENT"] = overrides.get("user_agent")
+            headers["User-Agent"] = overrides["user_agent"]
         if overrides.get("trace_headers"):
-            for key, value in overrides.get("trace_headers").items():
-                headers[f"HTTP_{key}"] = value
+            headers.update(overrides["trace_headers"])
 
-        request_factory = RequestFactory()
-
-        request = request_factory.get(path="/", data={}, **headers)
+        request = request_factory().get(path="/", data={}, headers=headers)
 
         if overrides.get("server_port"):
-            request.environ["SERVER_PORT"] = overrides.get("server_port")
+            request.META["SERVER_PORT"] = overrides["server_port"]
+        if overrides.get("remote_address"):
+            request.META["REMOTE_ADDR"] = overrides["remote_address"]
         if overrides.get("user"):
-            request.user = overrides.get("user")
+            request.user = overrides["user"]
 
         return request
 
@@ -395,8 +489,8 @@ class TestASIMFormatter:
         )
         return user
 
-    def _create_request_log_record(self, logger, overrides={}):
-        request = self._create_request(overrides=overrides)
+    def _create_request_log_record(self, logger, overrides={}, request_factory=RequestFactory):
+        request = self._create_request(overrides=overrides, request_factory=request_factory)
         logger.addHandler(SpyLogHandler(records_list=[]))
         message_content = "testing 123"
         logger.debug(
