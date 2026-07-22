@@ -7,6 +7,7 @@ from importlib.metadata import distribution
 import ddtrace
 from ddtrace.trace import tracer
 from django.conf import settings
+from ipware import get_client_ip
 
 from .ecs import _get_container_id
 
@@ -39,9 +40,7 @@ class ASIMRootFormatter:
 
         span = tracer.current_span()
         trace_id, span_id = (
-            (self._get_first_64_bits_of(span.trace_id), span.span_id)
-            if span
-            else (None, None)
+            (self._get_first_64_bits_of(span.trace_id), span.span_id) if span else (None, None)
         )
 
         # add ids to structlog event dictionary
@@ -148,9 +147,9 @@ class ASIMRequestFormatter(ASIMRootFormatter):
         request = self.record.request
 
         # Source fields...
-        log_dict["SrcIpAddr"] = request.headers.get("REMOTE_ADDR", None)
+        log_dict["SrcIpAddr"] = request.META.get("REMOTE_ADDR", None)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
-        log_dict["SrcPortNumber"] = request.environ.get("SERVER_PORT", None)
+        log_dict["SrcPortNumber"] = request.META.get("SERVER_PORT", None)
         user_id, username = self._get_user_details(request)
         log_dict["SrcUserId"] = user_id
         log_dict["SrcUsername"] = username
@@ -188,6 +187,7 @@ class ASIMRequestFormatter(ASIMRootFormatter):
         if not http_user_agent:
             http_user_agent = request.META.get("HTTP_USER_AGENT", None)
         return http_user_agent
+
 
 ASIM_FORMATTERS = {
     "root": ASIMRootFormatter,
