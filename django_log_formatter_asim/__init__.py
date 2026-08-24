@@ -7,6 +7,7 @@ from importlib.metadata import distribution
 import ddtrace
 from ddtrace.trace import tracer
 from django.conf import settings
+from ipware import get_client_ip
 
 from .ecs import _get_container_id
 
@@ -146,7 +147,7 @@ class ASIMRequestFormatter(ASIMRootFormatter):
         request = self.record.request
 
         # Source fields...
-        log_dict["SrcIpAddr"] = request.META.get("REMOTE_ADDR", None)
+        log_dict["SrcIpAddr"], _ = get_client_ip(request)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
         log_dict["SrcPortNumber"] = request.META.get("SERVER_PORT", None)
         user_id, username = self._get_user_details(request)
