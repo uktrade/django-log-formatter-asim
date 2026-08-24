@@ -7,7 +7,6 @@ from importlib.metadata import distribution
 import ddtrace
 from ddtrace.trace import tracer
 from django.conf import settings
-from ipware import get_client_ip
 
 from .ecs import _get_container_id
 
