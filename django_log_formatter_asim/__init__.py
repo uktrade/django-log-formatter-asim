@@ -149,7 +149,11 @@ class ASIMRequestFormatter(ASIMRootFormatter):
         # Source fields...
         log_dict["SrcIpAddr"], _ = get_client_ip(request)
         log_dict["IpAddr"] = log_dict["SrcIpAddr"]
+
+        # TODO: This isn't the SrcPortNumber, it's the DvcPortNumber.
+        # Either rename the field, or populate with correct value.
         log_dict["SrcPortNumber"] = request.META.get("SERVER_PORT", None)
+
         user_id, username = self._get_user_details(request)
         log_dict["SrcUserId"] = user_id
         log_dict["SrcUsername"] = username
