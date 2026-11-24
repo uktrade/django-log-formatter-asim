@@ -16,10 +16,10 @@ packages = [
 python = ">=3.10,<3.15"
 django = ">=4.2,<7"
 ddtrace = ">=4.8.2,<5"
-django-ipware = "^7.0.1"
+django-ipware = ">=7.0.1,<9.0.0"
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.5.0"
+pre-commit = ">=3.5,<5.0"
 pytest = ">=7.4.3,<10.0.0"
 tox = "^4.11.3"
 freezegun = "^1.5.2"

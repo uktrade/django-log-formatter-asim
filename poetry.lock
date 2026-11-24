@@ -214,18 +214,23 @@ bcrypt = ["bcrypt"]
 
 [[package]]
 name = "django-ipware"
-version = "7.0.1"
-description = "A Django application to retrieve user's IP address"
+version = "8.0.0"
+description = "A Django application to retrieve a client's real IP address."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "django-ipware-7.0.1.tar.gz", hash = "sha256:d9ec43d2bf7cdf216fed8d494a084deb5761a54860a53b2e74346a4f384cff47"},
-    {file = "django_ipware-7.0.1-py2.py3-none-any.whl", hash = "sha256:db16bbee920f661ae7f678e4270460c85850f03c6761a4eaeb489bdc91f64709"},
+    {file = "django_ipware-8.0.0-py3-none-any.whl", hash = "sha256:63e9e589aa58c37fbcd3f7624d18a08e69d95b03c84bab7e5ad2a12b03f8c4ec"},
+    {file = "django_ipware-8.0.0.tar.gz", hash = "sha256:377cc7926ea377d8f544511b019cd32b28060e1c9caa3d0c43c3e5e923560f33"},
 ]
 
 [package.dependencies]
-python-ipware = ">=2.0.3"
+django = ">=5.2"
+python-ipware = ">=4.1.0,<5"
+
+[package.extras]
+dev = ["build", "coverage[toml]", "ruff (==0.16.8)", "twine"]
+test = ["coverage[toml]", "ruff (==0.16.8)"]
 
 [[package]]
 name = "envier"
@@ -432,14 +437,14 @@ testing = ["coverage", "pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pre-commit"
-version = "3.8.0"
+version = "4.6.2"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "pre_commit-3.8.0-py2.py3-none-any.whl", hash = "sha256:9a90a53bf82fdd8778d58085faf8d83df56e40dfe18f45b19446e26bf1b3a63f"},
-    {file = "pre_commit-3.8.0.tar.gz", hash = "sha256:8bb6494d4a20423842e198980c9ecf9f96607a07ea29549e180eef9ae80fe7af"},
+    {file = "pre_commit-4.6.2-py2.py3-none-any.whl", hash = "sha256:e2dde9a75d3bce11bd3831c26d134df00a2803c1d818be6a0383c3dcda25dc4e"},
+    {file = "pre_commit-4.6.2.tar.gz", hash = "sha256:8f5d7bfb021ecdbcd9d49d89847082dd24172ccde534390081a679ad046e2441"},
 ]
 
 [package.dependencies]
@@ -559,18 +564,19 @@ filelock = ">=3.16.1"
 
 [[package]]
 name = "python-ipware"
-version = "3.0.0"
-description = "A Python package to retrieve user's IP address"
+version = "4.1.1"
+description = "A Python package to retrieve a client's real IP address."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "python_ipware-3.0.0-py3-none-any.whl", hash = "sha256:fc936e6e7ec9fcc107f9315df40658f468ac72f739482a707181742882e36b60"},
-    {file = "python_ipware-3.0.0.tar.gz", hash = "sha256:9117b1c4dddcb5d5ca49e6a9617de2fc66aec2ef35394563ac4eecabdf58c062"},
+    {file = "python_ipware-4.1.1-py3-none-any.whl", hash = "sha256:52eedd4cb7bb9e1bb6b9dd92db974e729fe54be22e1389703e21c60344b9f039"},
+    {file = "python_ipware-4.1.1.tar.gz", hash = "sha256:fd6102058e74c29112b4376f8abbae718852c95f8de6965801de88ca9780d22f"},
 ]
 
 [package.extras]
-dev = ["coverage[toml]", "coveralls (>=3.3,<4.0)", "ruff", "twine"]
+dev = ["build", "coverage[toml]", "ruff (==0.16.8)", "twine"]
+test = ["coverage[toml]", "ruff (==0.16.8)"]
 
 [[package]]
 name = "pyyaml"
@@ -972,4 +978,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "c4575d105b310ec06553352cffe4fd01f8154f5dcb300b46dd5402518996b0ad"
+content-hash = "785867af881a2322933d4ee7a502eaf42dcd0886c4e3be1b5b33279125092691"
